@@ -77,6 +77,7 @@ export interface Character {
       armor: Armor | null;
   };
   specialBonuses?: string[];
+  imageUrl?: string;
 }
 
 export interface Difficulty {

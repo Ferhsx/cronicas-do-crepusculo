@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import LZString from 'lz-string';
 import { Character, Flame, Archetype, Origin, Difficulty, FLAME_KEYS, EquipmentItem, isWeapon, isArmor, Weapon, Armor, RollResult } from '../types';
 import { ARCHETYPES, ORIGINS, INITIAL_POINTS_TO_DISTRIBUTE, MIN_FLAME_START, MAX_FLAME_START, MAX_PENUMBRA, BASE_HP, DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS, ITEMS } from '../constants';
 import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from './icons';
@@ -12,6 +13,17 @@ const FLAME_DETAILS: Record<Flame, { icon: React.FC, color: string, description:
     [Flame.Jade]: { icon: JadeFlameIcon, color: 'text-emerald-400', description: 'Carisma e manipulação social' },
     [Flame.Rubi]: { icon: RubyFlameIcon, color: 'text-rose-500', description: 'Conexão com o sobrenatural' },
 };
+
+const ImagePlaceholderIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500">
+        <path d="M15.5 2H8.5C6 2 4 4 4 6.5V17.5C4 20 6 22 8.5 22H15.5C18 22 20 20 20 17.5V6.5C20 4 18 2 15.5 2z"></path>
+        <path d="M8 7h8"></path>
+        <path d="M8 12h4"></path>
+        <path d="M17 12h-2"></path>
+        <path d="M8 17h8"></path>
+    </svg>
+);
+
 
 const getInitialCharacter = (player: string): Character => {
     const defaultArchetype = ARCHETYPES[0];
@@ -26,7 +38,6 @@ const getInitialCharacter = (player: string): Character => {
     let influence = { crepuscular: 0, eterna: 0, brumas: 0, alvorecer: 0 };
     let specialBonuses: string[] = [];
     
-    // Apply default origin bonus
     switch(defaultOrigin.id) {
         case 'nobre': 
             flames[Flame.Jade] += 1;
@@ -64,6 +75,7 @@ const getInitialCharacter = (player: string): Character => {
         inventory: startingInventory,
         equipped: { weapon: null, armor: null },
         specialBonuses,
+        imageUrl: '',
     };
 };
 
@@ -73,6 +85,45 @@ const Section: React.FC<{ title: string; children: React.ReactNode; className?: 
         {children}
     </div>
 );
+
+const ShareCharacter: React.FC<{ character: Character }> = ({ character }) => {
+    const [copySuccess, setCopySuccess] = useState('');
+
+    const handleShare = async () => {
+        if (!character.name.trim()) {
+            setCopySuccess('Dê um nome ao seu personagem primeiro!');
+            setTimeout(() => setCopySuccess(''), 3000);
+            return;
+        }
+        try {
+            const compressedData = LZString.compressToEncodedURIComponent(JSON.stringify(character));
+            const url = `${window.location.origin}${window.location.pathname}?char=${compressedData}`;
+            await navigator.clipboard.writeText(url);
+            setCopySuccess('Link copiado para a área de transferência!');
+            setTimeout(() => setCopySuccess(''), 3000);
+        } catch (err) {
+            console.error('Falha ao copiar o link:', err);
+            setCopySuccess('Falha ao copiar. Tente novamente.');
+            setTimeout(() => setCopySuccess(''), 3000);
+        }
+    };
+
+    return (
+        <Section title="Compartilhar Ficha">
+            <p className="text-sm text-slate-400 mb-4">
+                Gere um link para compartilhar sua ficha. Qualquer pessoa com o link poderá ver a sua ficha atual.
+            </p>
+            <button
+                onClick={handleShare}
+                className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+                Gerar e Copiar Link
+            </button>
+            {copySuccess && <p className={`text-center mt-3 text-sm transition-opacity ${copySuccess.includes('Falha') || copySuccess.includes('nome') ? 'text-red-400' : 'text-green-400'}`}>{copySuccess}</p>}
+        </Section>
+    );
+};
+
 
 const TextArea: React.FC<{ value: string; onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; placeholder: string; rows?: number }> = ({ value, onChange, placeholder, rows = 3 }) => (
     <textarea
@@ -324,15 +375,28 @@ const EquipmentAndInventory: React.FC<{character: Character, setCharacter: React
     );
 }
 
-export default function CharacterSheet({ user }: { user: string }) {
+export default function CharacterSheet({ user, initialCharacterData }: { user: string, initialCharacterData: Character | null }) {
     const [character, setCharacter] = useState<Character>(() => {
+        if (initialCharacterData) {
+            return initialCharacterData;
+        }
         const savedData = localStorage.getItem(`character_sheet_${user}`);
         return savedData ? JSON.parse(savedData) : getInitialCharacter(user);
     });
     const [isCreating, setIsCreating] = useState(() => {
+        if (initialCharacterData) {
+            return false;
+        }
         const savedData = localStorage.getItem(`character_sheet_${user}`);
-        return !savedData || !JSON.parse(savedData).name; // Start in creation mode if no char or no name
+        return !savedData || !JSON.parse(savedData).name;
     });
+
+    useEffect(() => {
+        if (initialCharacterData) {
+            setCharacter(initialCharacterData);
+            setIsCreating(false);
+        }
+    }, [initialCharacterData]);
 
     useEffect(() => {
         localStorage.setItem(`character_sheet_${user}`, JSON.stringify(character));
@@ -366,6 +430,30 @@ export default function CharacterSheet({ user }: { user: string }) {
     const updateCharacterField = useCallback(<K extends keyof Character>(key: K, value: Character[K]) => {
         setCharacter(prev => ({...prev, [key]: value}));
     }, []);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit
+            alert("A imagem é muito grande. Por favor, escolha uma imagem menor que 2MB.");
+            e.target.value = ''; // Clear the input
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                updateCharacterField('imageUrl', reader.result);
+            }
+        };
+        reader.onerror = (error) => {
+            console.error("Erro ao ler a imagem:", error);
+            alert("Ocorreu um erro ao carregar a imagem.");
+        };
+        reader.readAsDataURL(file);
+    };
+
 
     const handleFlameChange = useCallback((flame: Flame, change: number) => {
         if (!isCreating) return;
@@ -417,9 +505,8 @@ export default function CharacterSheet({ user }: { user: string }) {
             let newPenumbra = prev.penumbra;
             let newInfluence = {...prev.influence};
             let newSpecialBonuses = prev.specialBonuses ? [...prev.specialBonuses] : [];
-            let newInventory = prev.inventory.map(item => ({...item})); // Deep copy
+            let newInventory = prev.inventory.map(item => ({...item}));
 
-            // Revert old origin effects
             switch (oldOrigin.id) {
                 case 'nobre': 
                     newFlames[Flame.Jade] = Math.max(MIN_FLAME_START, newFlames[Flame.Jade] - 1);
@@ -442,7 +529,6 @@ export default function CharacterSheet({ user }: { user: string }) {
                     break;
             }
 
-            // Apply new origin effects
             switch (newOrigin.id) {
                 case 'nobre': 
                     newFlames[Flame.Jade] += 1;
@@ -505,8 +591,39 @@ export default function CharacterSheet({ user }: { user: string }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
             <div className="lg:col-span-1 space-y-6">
                 <Section title="Identidade">
-                    <input type="text" placeholder="Nome do Personagem" value={character.name} onChange={e => updateCharacterField('name', e.target.value)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-lg" />
-                    <p className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 text-slate-400">Jogador: {character.player}</p>
+                    <div className="flex items-start space-x-4">
+                        {/* Image Display & Upload */}
+                        <div className="w-28 h-28 bg-slate-900/80 border border-slate-600 rounded-lg flex-shrink-0 group relative overflow-hidden">
+                            {character.imageUrl ? (
+                                <img src={character.imageUrl} alt="Retrato do Personagem" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <ImagePlaceholderIcon />
+                                </div>
+                            )}
+                            <label htmlFor="image-upload" className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                Trocar
+                            </label>
+                            <input
+                                id="image-upload"
+                                type="file"
+                                accept="image/png, image/jpeg, image/webp"
+                                className="hidden"
+                                onChange={handleImageUpload}
+                            />
+                        </div>
+                        {/* Character Info */}
+                        <div className="flex-grow space-y-3">
+                            <input
+                                type="text"
+                                placeholder="Nome do Personagem"
+                                value={character.name}
+                                onChange={e => updateCharacterField('name', e.target.value)}
+                                className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-lg"
+                            />
+                            <p className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 text-slate-400">Jogador: {character.player}</p>
+                        </div>
+                    </div>
                 </Section>
 
                 <Section title="Arquétipo">
@@ -547,6 +664,8 @@ export default function CharacterSheet({ user }: { user: string }) {
                         </div>
                     </div>
                 </Section>
+                
+                <ShareCharacter character={character} />
 
                 <DiceRoller character={character} setCharacter={setCharacter} />
             </div>
@@ -618,7 +737,7 @@ export default function CharacterSheet({ user }: { user: string }) {
                     <div className="space-y-2">
                         {Object.entries(FACTIONS).map(([key, name]) => (
                             <div key={key} className="flex justify-between items-center">
-                                <label className="text-slate-300">{name}</label>
+                                <label className="text-slate-300">{String(name)}</label>
                                 <input type="number" min="0" value={character.influence[key as keyof typeof FACTIONS]} onChange={e => setCharacter(c => ({...c, influence: {...c.influence, [key]: Number(e.target.value)}}))} className="w-20 bg-slate-900/80 border border-slate-600 rounded-md p-1 text-center" />
                             </div>
                         ))}

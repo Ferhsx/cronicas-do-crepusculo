@@ -6,21 +6,23 @@ import Rules from './Rules';
 import Archetypes from './Archetypes';
 import CharacterSheet from './CharacterSheet';
 import { Page } from '../App';
+import { Character } from '../types';
 
 interface MainLayoutProps {
     user: string;
     onLogout: () => void;
+    initialCharacterData: Character | null;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
-    const [activePage, setActivePage] = useState<Page>('lore');
+const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout, initialCharacterData }) => {
+    const [activePage, setActivePage] = useState<Page>(initialCharacterData ? 'sheet' : 'lore');
 
     const renderPage = () => {
         switch (activePage) {
             case 'lore': return <Lore />;
             case 'rules': return <Rules />;
             case 'archetypes': return <Archetypes />;
-            case 'sheet': return <CharacterSheet user={user} />;
+            case 'sheet': return <CharacterSheet user={user} initialCharacterData={initialCharacterData} />;
             default: return <Lore />;
         }
     };

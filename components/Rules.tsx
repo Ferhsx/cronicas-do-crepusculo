@@ -1,6 +1,16 @@
-
 import React from 'react';
 import { Section } from '../App';
+import { DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS } from '../constants';
+import { FLAME_KEYS } from '../types';
+
+// As descrições não estão nas constantes, então criamos um mapa local.
+const FLAME_DESCRIPTIONS: Record<string, string> = {
+    "Chama de Ferro": "Força física e resistência",
+    "Chama de Prata": "Agilidade e destreza",
+    "Chama de Ouro": "Intelecto e sabedoria",
+    "Chama de Jade": "Carisma e manipulação social",
+    "Chama de Rubi": "Conexão com o sobrenatural",
+};
 
 const SubSection: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
     <div className={`mt-6 ${className}`}>
@@ -17,11 +27,9 @@ const Rules = () => {
                     <SubSection title="Sistema de Atributos: As Cinco Chamas">
                         <p>Em vez de atributos tradicionais, cada personagem possui 5 Chamas que representam aspectos da alma:</p>
                         <ul className="list-disc list-inside space-y-1 pl-4">
-                            <li><strong>Chama de Ferro:</strong> Força física e resistência</li>
-                            <li><strong>Chama de Prata:</strong> Agilidade e destreza</li>
-                            <li><strong>Chama de Ouro:</strong> Intelecto e sabedoria</li>
-                            <li><strong>Chama de Jade:</strong> Carisma e manipulação social</li>
-                            <li><strong>Chama de Rubi:</strong> Conexão com o sobrenatural</li>
+                            {FLAME_KEYS.map(flame => (
+                                <li key={flame}><strong>{flame}:</strong> {FLAME_DESCRIPTIONS[flame]}</li>
+                            ))}
                         </ul>
                         <p className="mt-2"><strong>Valores:</strong> Cada Chama tem intensidade de 1 a 6. Na criação, os personagens distribuem 12 pontos além do valor base 1 em cada Chama (totalizando 17 pontos), com um valor máximo inicial de 4.</p>
                     </SubSection>
@@ -30,11 +38,7 @@ const Rules = () => {
                         <p><strong>Teste Básico:</strong> Role 2d6 + Chama relevante</p>
                         <p><strong>Dificuldades:</strong></p>
                         <ul className="list-disc list-inside space-y-1 pl-4">
-                            <li>Trivial (8)</li>
-                            <li>Moderado (10)</li>
-                            <li>Difícil (12)</li>
-                            <li>Heroico (14)</li>
-                            <li>Lendário (16)</li>
+                            {DIFFICULTIES.map(d => <li key={d.name}>{d.name} ({d.value})</li>)}
                         </ul>
                     </SubSection>
                 </Section>
@@ -42,9 +46,9 @@ const Rules = () => {
                 <Section title="Sistema de Penumbra">
                      <p>Cada personagem tem uma Barra de Penumbra (0-10). Conforme a Penumbra aumenta, a escuridão interior se manifesta:</p>
                      <ul className="list-disc list-inside space-y-1 pl-4">
-                        <li><strong>0-3:</strong> Normal</li>
-                        <li><strong>4-6:</strong> -1 em todos os testes, mas +1 em testes de Rubi</li>
-                        <li><strong>7-9:</strong> -2 em testes, mas +2 em Rubi e pode usar habilidades sombrias</li>
+                        {PENUMBRA_EFFECTS.map(effect => (
+                            <li key={effect.range}><strong>{effect.range}:</strong> {effect.description}</li>
+                        ))}
                         <li><strong>10:</strong> <strong className="text-red-400">Perdido na Escuridão</strong> - vira um NPC controlado pelo mestre, consumido por seus demônios interiores.</li>
                     </ul>
                 </Section>
@@ -93,10 +97,7 @@ const Rules = () => {
                      <SubSection title="Níveis de Influência">
                         <p>Cada personagem tem níveis de influência com as facções:</p>
                         <ul className="list-disc list-inside space-y-1 pl-4">
-                           <li>Guarda Crepuscular</li>
-                           <li>Culto da Luz Eterna</li>
-                           <li>Mercadores das Brumas</li>
-                           <li>Rebeldes do Alvorecer</li>
+                           {Object.values(FACTIONS).map(factionName => <li key={String(factionName)}>{String(factionName)}</li>)}
                         </ul>
                     </SubSection>
                     <SubSection title="Testes Sociais">
