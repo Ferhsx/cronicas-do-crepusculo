@@ -30,8 +30,8 @@ Para executar este projeto em sua máquina local, siga os passos abaixo:
 
 1.  **Clone o repositório:**
     ```sh
-    git clone https://github.com/SEU-USUARIO/NOME-DO-SEU-REPOSITORIO.git
-    cd NOME-DO-SEU-REPOSITORIO
+    git clone https://github.com/ferhsx/cronicas-do-crepusculo.git
+    cd cronicas-do-crepusculo
     ```
 
 2.  **Instale as dependências:**
