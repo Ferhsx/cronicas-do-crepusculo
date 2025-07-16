@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
 import Navigation from './Navigation';
-import Lore from './Lore';
-import Rules from './Rules';
-import Archetypes from './Archetypes';
-import CharacterSheet from './CharacterSheet';
+import Lore from '../pages/Lore';
+import Rules from '../pages/Rules';
+import Archetypes from '../pages/Archetypes';
+import CharacterSheet from '../pages/CharacterSheet';
 import { Page } from '../App';
 import { Character } from '../types';
 
-interface MainLayoutProps {
+export interface MainLayoutProps {
     user: string;
     onLogout: () => void;
-    initialCharacterData: Character | null;
+    initialCharacterData?: Character | null;
+    children?: React.ReactNode;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout, initialCharacterData }) => {
@@ -22,7 +23,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout, initialCharacte
             case 'lore': return <Lore />;
             case 'rules': return <Rules />;
             case 'archetypes': return <Archetypes />;
-            case 'sheet': return <CharacterSheet user={user} initialCharacterData={initialCharacterData} />;
+            case 'sheet': return <CharacterSheet user={user} initialCharacterData={initialCharacterData ?? null} />;
             default: return <Lore />;
         }
     };

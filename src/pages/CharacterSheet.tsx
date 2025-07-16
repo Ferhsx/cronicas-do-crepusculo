@@ -1,10 +1,9 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import LZString from 'lz-string';
 import { Character, Flame, Archetype, Origin, Difficulty, FLAME_KEYS, EquipmentItem, isWeapon, isArmor, Weapon, Armor, RollResult } from '../types';
 import { ARCHETYPES, ORIGINS, INITIAL_POINTS_TO_DISTRIBUTE, MIN_FLAME_START, MAX_FLAME_START, MAX_PENUMBRA, BASE_HP, DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS, ITEMS } from '../constants';
-import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from './icons';
-
+import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from '../icons';
+import { saveCharacterForSharing } from '../service/characterService';
 
 const FLAME_DETAILS: Record<Flame, { icon: React.FC, color: string, description: string }> = {
     [Flame.Ferro]: { icon: IronFlameIcon, color: 'text-red-500', description: 'Força física e resistência' },
@@ -28,7 +27,7 @@ const ImagePlaceholderIcon = () => (
 const getInitialCharacter = (player: string): Character => {
     const defaultArchetype = ARCHETYPES[0];
     const defaultOrigin = ORIGINS[0];
-    
+
     const flames = FLAME_KEYS.reduce((acc, key) => {
         acc[key] = MIN_FLAME_START;
         return acc;
@@ -37,21 +36,21 @@ const getInitialCharacter = (player: string): Character => {
     let penumbra = 0;
     let influence = { crepuscular: 0, eterna: 0, brumas: 0, alvorecer: 0 };
     let specialBonuses: string[] = [];
-    
-    switch(defaultOrigin.id) {
-        case 'nobre': 
+
+    switch (defaultOrigin.id) {
+        case 'nobre':
             flames[Flame.Jade] += 1;
             Object.keys(influence).forEach(key => influence[key as keyof typeof influence] += 1);
             break;
         case 'sobrevivente': flames[Flame.Prata] += 1; penumbra = 1; break;
-        case 'estudioso': 
-            flames[Flame.Ouro] += 1; 
+        case 'estudioso':
+            flames[Flame.Ouro] += 1;
             specialBonuses.push("Conhece 1 Eco extra");
             break;
         case 'artesao': flames[Flame.Ferro] += 1; break;
     }
 
-    let startingInventory = defaultArchetype.startingEquipment.map(id => ({...ITEMS[id]})).filter(Boolean);
+    let startingInventory = defaultArchetype.startingEquipment.map(id => ({ ...ITEMS[id] })).filter(Boolean);
 
     if (defaultOrigin.id === 'artesao') {
         startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
@@ -88,6 +87,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode; className?: 
 
 const ShareCharacter: React.FC<{ character: Character }> = ({ character }) => {
     const [copySuccess, setCopySuccess] = useState('');
+    const [isSharing, setIsSharing] = useState(false);
 
     const handleShare = async () => {
         if (!character.name.trim()) {
@@ -95,19 +95,25 @@ const ShareCharacter: React.FC<{ character: Character }> = ({ character }) => {
             setTimeout(() => setCopySuccess(''), 3000);
             return;
         }
+        setIsSharing(true);
         try {
-            const compressedData = LZString.compressToEncodedURIComponent(JSON.stringify(character));
-            const url = `${window.location.origin}${window.location.pathname}?char=${compressedData}`;
+            // 1. CHAMA O SERVIÇO para salvar a ficha e obter o ID
+            const characterId = await saveCharacterForSharing(character);
+
+            // 2. Cria a URL limpa com o ID
+            const url = `${window.location.origin}${window.location.pathname}?id=${characterId}`;
+
             await navigator.clipboard.writeText(url);
-            setCopySuccess('Link copiado para a área de transferência!');
-            setTimeout(() => setCopySuccess(''), 3000);
+            setCopySuccess('Link curto copiado para a área de transferência!');
         } catch (err) {
-            console.error('Falha ao copiar o link:', err);
-            setCopySuccess('Falha ao copiar. Tente novamente.');
+            console.error(err);
+            setCopySuccess('Falha ao gerar o link. Tente novamente.');
+        } finally {
+            setIsSharing(false);
             setTimeout(() => setCopySuccess(''), 3000);
         }
     };
-
+    
     return (
         <Section title="Compartilhar Ficha">
             <p className="text-sm text-slate-400 mb-4">
@@ -163,7 +169,7 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
         const penumbra = getPenumbraEffects();
         let result: RollResult;
 
-        switch(type) {
+        switch (type) {
             case 'Iniciativa': {
                 const { total, rolls } = rollDice(1);
                 const finalResult = total + character.flames[Flame.Prata];
@@ -182,7 +188,7 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
                 const { total: diceTotal, rolls } = rollDice(2);
                 const flameValue = character.flames[selectedFlame];
                 const weaponBonus = character.equipped.weapon?.damageBonus ?? 0;
-                
+
                 const crepuscularRoll = Math.floor(Math.random() * 6) + 1;
                 let crepuscularEffect = "Golpe Normal.";
                 let crepuscularDamageRoll: number | undefined;
@@ -191,10 +197,10 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
                     const { total } = rollDice(1);
                     crepuscularDamageRoll = total;
                     crepuscularEffect = `+${crepuscularDamageRoll} Dano, +1 Penumbra.`;
-                    setCharacter(c => ({...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1)}));
+                    setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) }));
                 } else if (crepuscularRoll >= 5) {
                     crepuscularEffect = `Dano Crítico (dobrado), +2 Penumbra.`;
-                    setCharacter(c => ({...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2)}));
+                    setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2) }));
                 }
 
                 const finalResult = diceTotal + flameValue + weaponBonus;
@@ -212,12 +218,12 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
         }
         setRollResult(result);
     };
-    
+
     const renderResult = () => {
         if (!rollResult) return null;
 
         const { type, total, success, rolls, flameType, flameValue, penumbraModifier, bonus, bonusSource, difficulty, crepuscularRoll, crepuscularEffect } = rollResult;
-        
+
         const calculation = [
             `${rollResult.diceCount}d6(${rolls.join('+')})`,
             flameValue ? `${flameValue} ${flameType?.split(' ')[2]}` : null,
@@ -228,16 +234,16 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
         const isSuccess = success === true ? 'bg-green-500/20 text-green-300 border-green-500' : success === false ? 'bg-red-500/20 text-red-300 border-red-500' : 'bg-slate-900/50 text-amber-200 border-slate-700';
 
         return (
-             <div className={`p-3 rounded-md border text-center animate-fade-in ${isSuccess}`}>
+            <div className={`p-3 rounded-md border text-center animate-fade-in ${isSuccess}`}>
                 <h4 className="font-bold text-lg">{type}: {total}</h4>
                 <p className="font-mono text-sm">{calculation}</p>
                 {difficulty && <p className="text-xs">Dificuldade: {difficulty} - {success ? 'Sucesso!' : 'Falha'}</p>}
                 {crepuscularRoll && <p className="text-xs mt-1 pt-1 border-t border-slate-600">Golpe Crepuscular (d6: {crepuscularRoll}): {crepuscularEffect}</p>}
-             </div>
+            </div>
         )
     }
 
-    const TabButton: React.FC<{tabId: 'test' | 'combat', children: React.ReactNode}> = ({tabId, children}) => (
+    const TabButton: React.FC<{ tabId: 'test' | 'combat', children: React.ReactNode }> = ({ tabId, children }) => (
         <button onClick={() => setActiveTab(tabId)} className={`flex-1 pb-2 font-cinzel text-lg border-b-2 ${activeTab === tabId ? 'border-amber-400 text-amber-300' : 'border-slate-700 text-slate-400'}`}>
             {children}
         </button>
@@ -273,31 +279,31 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
             {activeTab === 'combat' && (
                 <div className="space-y-4 animate-fade-in">
                     <div className="text-center">
-                         <label htmlFor="combat-flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama de Ataque</label>
-                         <select id="combat-flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <label htmlFor="combat-flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama de Ataque</label>
+                        <select id="combat-flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
                             {[Flame.Ferro, Flame.Prata].map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                         <button onClick={() => handleRoll('Iniciativa')} className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Iniciativa (1d6)</button>
-                         <button onClick={() => handleRoll('Ataque')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Ataque (2d6)</button>
-                         <button onClick={() => handleRoll('Defesa')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Defesa (2d6)</button>
+                        <button onClick={() => handleRoll('Iniciativa')} className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Iniciativa (1d6)</button>
+                        <button onClick={() => handleRoll('Ataque')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Ataque (2d6)</button>
+                        <button onClick={() => handleRoll('Defesa')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Defesa (2d6)</button>
                     </div>
                 </div>
             )}
-            
+
             {rollResult && <div className="mt-4">{renderResult()}</div>}
         </Section>
     );
 };
 
-const EquipmentAndInventory: React.FC<{character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>>}> = ({ character, setCharacter }) => {
-    
+const EquipmentAndInventory: React.FC<{ character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ character, setCharacter }) => {
+
     const handleEquip = (itemToEquip: EquipmentItem) => {
         setCharacter(prev => {
             const newInventory = prev.inventory.filter(i => i.id !== itemToEquip.id);
             const newEquipped = { ...prev.equipped };
-            
+
             if (isWeapon(itemToEquip)) {
                 if (prev.equipped.weapon) newInventory.push(prev.equipped.weapon);
                 newEquipped.weapon = itemToEquip;
@@ -305,7 +311,7 @@ const EquipmentAndInventory: React.FC<{character: Character, setCharacter: React
                 if (prev.equipped.armor) newInventory.push(prev.equipped.armor);
                 newEquipped.armor = itemToEquip;
             } else {
-                 newInventory.push(itemToEquip);
+                newInventory.push(itemToEquip);
             }
 
             return { ...prev, inventory: newInventory, equipped: newEquipped };
@@ -319,16 +325,16 @@ const EquipmentAndInventory: React.FC<{character: Character, setCharacter: React
 
             const newInventory = [...prev.inventory, itemToUnequip];
             const newEquipped = { ...prev.equipped, [type]: null };
-            
+
             return { ...prev, inventory: newInventory, equipped: newEquipped };
         });
     };
-    
+
     const handleDelete = (itemId: string) => {
-        setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== itemId)}));
+        setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== itemId) }));
     }
 
-    const EquippedItem: React.FC<{label: string, item: Weapon | Armor | null, onUnequip: () => void}> = ({label, item, onUnequip}) => (
+    const EquippedItem: React.FC<{ label: string, item: Weapon | Armor | null, onUnequip: () => void }> = ({ label, item, onUnequip }) => (
         <div>
             <h4 className="font-bold text-slate-300">{label}</h4>
             {item ? (
@@ -421,14 +427,14 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
         const totalFromBase = FLAME_KEYS.reduce((sum, key) => sum + baseFlames[key], 0);
         return totalFromBase - FLAME_KEYS.length * MIN_FLAME_START;
     }, [baseFlames]);
-    
+
     const pointsRemaining = INITIAL_POINTS_TO_DISTRIBUTE - pointsSpent;
 
     const activeArchetype = useMemo(() => ARCHETYPES.find(a => a.id === character.archetypeId)!, [character.archetypeId]);
     const activeOrigin = useMemo(() => ORIGINS.find(o => o.id === character.originId)!, [character.originId]);
-    
+
     const updateCharacterField = useCallback(<K extends keyof Character>(key: K, value: Character[K]) => {
-        setCharacter(prev => ({...prev, [key]: value}));
+        setCharacter(prev => ({ ...prev, [key]: value }));
     }, []);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -469,7 +475,7 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
         if (newBaseValue < MIN_FLAME_START || newBaseValue > MAX_FLAME_START) {
             return;
         }
-        
+
         setCharacter(prev => {
             const newFlames = { ...prev.flames, [flame]: prev.flames[flame] + change };
             const newHp = BASE_HP + newFlames[Flame.Ferro] * 3;
@@ -480,10 +486,10 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
     const handleArchetypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newArchetypeId = e.target.value;
         const newArchetype = ARCHETYPES.find(a => a.id === newArchetypeId)!;
-        let startingInventory = newArchetype.startingEquipment.map(id => ({...ITEMS[id]})).filter(Boolean);
+        let startingInventory = newArchetype.startingEquipment.map(id => ({ ...ITEMS[id] })).filter(Boolean);
 
         if (character.originId === 'artesao') {
-            startingInventory = startingInventory.map(item => ({...item, isMagical: true }));
+            startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
         }
 
         setCharacter(prev => ({
@@ -496,32 +502,32 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
 
     const handleOriginChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newOriginId = e.target.value;
-        
+
         setCharacter(prev => {
             const oldOrigin = ORIGINS.find(o => o.id === prev.originId)!;
             const newOrigin = ORIGINS.find(o => o.id === newOriginId)!;
 
             let newFlames = { ...prev.flames };
             let newPenumbra = prev.penumbra;
-            let newInfluence = {...prev.influence};
+            let newInfluence = { ...prev.influence };
             let newSpecialBonuses = prev.specialBonuses ? [...prev.specialBonuses] : [];
-            let newInventory = prev.inventory.map(item => ({...item}));
+            let newInventory = prev.inventory.map(item => ({ ...item }));
 
             switch (oldOrigin.id) {
-                case 'nobre': 
+                case 'nobre':
                     newFlames[Flame.Jade] = Math.max(MIN_FLAME_START, newFlames[Flame.Jade] - 1);
                     Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] = Math.max(0, newInfluence[key as keyof typeof newInfluence] - 1));
                     break;
-                case 'sobrevivente': 
-                    newPenumbra = Math.max(0, newPenumbra - 1); 
-                    newFlames[Flame.Prata] = Math.max(MIN_FLAME_START, newFlames[Flame.Prata] - 1); 
+                case 'sobrevivente':
+                    newPenumbra = Math.max(0, newPenumbra - 1);
+                    newFlames[Flame.Prata] = Math.max(MIN_FLAME_START, newFlames[Flame.Prata] - 1);
                     break;
-                case 'estudioso': 
+                case 'estudioso':
                     newFlames[Flame.Ouro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ouro] - 1);
                     newSpecialBonuses = newSpecialBonuses.filter(b => b !== "Conhece 1 Eco extra");
                     break;
-                case 'artesao': 
-                    newFlames[Flame.Ferro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ferro] - 1); 
+                case 'artesao':
+                    newFlames[Flame.Ferro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ferro] - 1);
                     newInventory = newInventory.map(item => {
                         delete item.isMagical;
                         return item;
@@ -530,28 +536,28 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
             }
 
             switch (newOrigin.id) {
-                case 'nobre': 
+                case 'nobre':
                     newFlames[Flame.Jade] += 1;
                     Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] += 1);
                     break;
-                case 'sobrevivente': 
-                    newPenumbra += 1; 
-                    newFlames[Flame.Prata] += 1; 
+                case 'sobrevivente':
+                    newPenumbra += 1;
+                    newFlames[Flame.Prata] += 1;
                     break;
-                case 'estudioso': 
+                case 'estudioso':
                     newFlames[Flame.Ouro] += 1;
                     if (!newSpecialBonuses.includes("Conhece 1 Eco extra")) {
                         newSpecialBonuses.push("Conhece 1 Eco extra");
                     }
                     break;
-                case 'artesao': 
-                    newFlames[Flame.Ferro] += 1; 
+                case 'artesao':
+                    newFlames[Flame.Ferro] += 1;
                     const archetype = ARCHETYPES.find(a => a.id === prev.archetypeId);
                     if (archetype) {
                         const startingIds = archetype.startingEquipment;
                         newInventory = newInventory.map(item => {
                             if (startingIds.includes(item.id)) {
-                                return {...item, isMagical: true};
+                                return { ...item, isMagical: true };
                             }
                             return item;
                         })
@@ -641,22 +647,22 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
                 </Section>
 
                 <Section title="VITAIS">
-                     <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4">
                         <span className="font-bold text-lg">Pontos de Vida (HP)</span>
                         <div className="flex items-center space-x-2">
-                            <button onClick={() => setCharacter(c => ({...c, hp: c.hp - 1}))} className={minusButtonClass} disabled={isCreating}>-</button>
+                            <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp - 1 }))} className={minusButtonClass} disabled={isCreating}>-</button>
                             <span className="font-mono text-xl w-24 text-center">{character.hp} / {BASE_HP + character.flames[Flame.Ferro] * 3}</span>
-                            <button onClick={() => setCharacter(c => ({...c, hp: c.hp + 1}))} className={plusButtonClass} disabled={isCreating}>+</button>
+                            <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp + 1 }))} className={plusButtonClass} disabled={isCreating}>+</button>
                         </div>
                     </div>
 
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="font-bold text-lg">Penumbra</span>
-                             <div className="flex items-center space-x-2">
-                                <button onClick={() => setCharacter(c => ({...c, penumbra: Math.max(0, c.penumbra-1)}))} className={buttonClass} disabled={isCreating}>-</button>
+                            <div className="flex items-center space-x-2">
+                                <button onClick={() => setCharacter(c => ({ ...c, penumbra: Math.max(0, c.penumbra - 1) }))} className={buttonClass} disabled={isCreating}>-</button>
                                 <span className="font-mono text-xl w-12 text-center">{character.penumbra} / {MAX_PENUMBRA}</span>
-                                <button onClick={() => setCharacter(c => ({...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra+1)}))} className={penumbraPlusButtonClass} disabled={isCreating}>+</button>
+                                <button onClick={() => setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) }))} className={penumbraPlusButtonClass} disabled={isCreating}>+</button>
                             </div>
                         </div>
                         <div className="w-full bg-slate-700 rounded-full h-4">
@@ -664,7 +670,7 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
                         </div>
                     </div>
                 </Section>
-                
+
                 <ShareCharacter character={character} />
 
                 <DiceRoller character={character} setCharacter={setCharacter} />
@@ -681,83 +687,84 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
                         {FLAME_KEYS.map(key => {
                             const isStrongFlame = activeArchetype.strongFlames.includes(key);
                             return (
-                            <div key={key} className={`flex items-center space-x-4 p-2 rounded-lg border-2 transition-all duration-300 ${isStrongFlame ? 'border-amber-400/40 bg-slate-800' : 'border-transparent'}`}>
-                                <div className={`p-2 rounded-full bg-slate-700 ${FLAME_DETAILS[key].color}`}>
-                                    {React.createElement(FLAME_DETAILS[key].icon)}
+                                <div key={key} className={`flex items-center space-x-4 p-2 rounded-lg border-2 transition-all duration-300 ${isStrongFlame ? 'border-amber-400/40 bg-slate-800' : 'border-transparent'}`}>
+                                    <div className={`p-2 rounded-full bg-slate-700 ${FLAME_DETAILS[key].color}`}>
+                                        {React.createElement(FLAME_DETAILS[key].icon)}
+                                    </div>
+                                    <div className="flex-grow">
+                                        <h3 className={`font-bold text-lg ${isStrongFlame ? 'text-amber-300' : FLAME_DETAILS[key].color} ${isStrongFlame ? '[text-shadow:0_0_8px_var(--tw-shadow-color)] animate-glow' : ''}`}>{key}</h3>
+                                        <p className="text-sm text-slate-400">{FLAME_DETAILS[key].description}</p>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        {isCreating && <button onClick={() => handleFlameChange(key, -1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">-</button>}
+                                        <span className="font-mono text-2xl w-8 text-center">{character.flames[key]}</span>
+                                        {isCreating && <button onClick={() => handleFlameChange(key, 1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">+</button>}
+                                    </div>
                                 </div>
-                                <div className="flex-grow">
-                                    <h3 className={`font-bold text-lg ${isStrongFlame ? 'text-amber-300' : FLAME_DETAILS[key].color} ${isStrongFlame ? '[text-shadow:0_0_8px_var(--tw-shadow-color)] animate-glow' : ''}`}>{key}</h3>
-                                    <p className="text-sm text-slate-400">{FLAME_DETAILS[key].description}</p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    {isCreating && <button onClick={() => handleFlameChange(key, -1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">-</button>}
-                                    <span className="font-mono text-2xl w-8 text-center">{character.flames[key]}</span>
-                                    {isCreating && <button onClick={() => handleFlameChange(key, 1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">+</button>}
-                                </div>
-                            </div>
-                        )})}
+                            )
+                        })}
                     </div>
-                     {isCreating && <button onClick={handleFinalizeCreation} className="w-full mt-6 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-500" disabled={pointsRemaining !== 0 || !character.name.trim()}>Finalizar Criação</button>}
+                    {isCreating && <button onClick={handleFinalizeCreation} className="w-full mt-6 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-500" disabled={pointsRemaining !== 0 || !character.name.trim()}>Finalizar Criação</button>}
                 </Section>
 
-                 <Section title="Habilidades e Bônus">
+                <Section title="Habilidades e Bônus">
                     <h3 className="font-bold text-amber-200">Habilidade Especial de Arquétipo</h3>
                     <p className="mb-3 text-slate-300">{activeArchetype.specialAbility}</p>
                     <h3 className="font-bold text-amber-200">Equipamento Inicial</h3>
                     <p className="mb-3 text-slate-300">{activeArchetype.equipmentDesc}</p>
                     {character.specialBonuses && character.specialBonuses.length > 0 && (
                         <>
-                         <h3 className="font-bold text-amber-200">Bônus de Origem</h3>
-                         <ul className="list-disc list-inside text-slate-300">
-                           {character.specialBonuses.map((bonus, i) => <li key={i}>{bonus}</li>)}
-                         </ul>
+                            <h3 className="font-bold text-amber-200">Bônus de Origem</h3>
+                            <ul className="list-disc list-inside text-slate-300">
+                                {character.specialBonuses.map((bonus, i) => <li key={i}>{bonus}</li>)}
+                            </ul>
                         </>
                     )}
                 </Section>
 
                 <EquipmentAndInventory character={character} setCharacter={setCharacter} />
-                
+
             </div>
 
             <div className="lg:col-span-1 space-y-6">
                 <Section title="Regras e Efeitos">
                     <h3 className="font-bold text-amber-200 mb-2">Efeitos da Penumbra</h3>
                     <ul className="list-disc list-inside space-y-1 text-slate-300">
-                         {PENUMBRA_EFFECTS.map(effect => (
+                        {PENUMBRA_EFFECTS.map(effect => (
                             <li key={effect.range}><strong>{effect.range}:</strong> {effect.description}</li>
                         ))}
                     </ul>
-                     <h3 className="font-bold text-amber-200 mt-4 mb-2">Dificuldades de Teste</h3>
+                    <h3 className="font-bold text-amber-200 mt-4 mb-2">Dificuldades de Teste</h3>
                     <ul className="list-disc list-inside space-y-1 text-slate-300">
                         {DIFFICULTIES.map(d => <li key={d.name}>{d.name}: {d.value}</li>)}
                     </ul>
                 </Section>
-                
-                 <Section title="Níveis de Influência">
+
+                <Section title="Níveis de Influência">
                     <div className="space-y-2">
                         {Object.entries(FACTIONS).map(([key, name]) => (
                             <div key={key} className="flex justify-between items-center">
                                 <label className="text-slate-300">{String(name)}</label>
-                                <input type="number" min="0" value={character.influence[key as keyof typeof FACTIONS]} onChange={e => setCharacter(c => ({...c, influence: {...c.influence, [key]: Number(e.target.value)}}))} className="w-20 bg-slate-900/80 border border-slate-600 rounded-md p-1 text-center" />
+                                <input type="number" min="0" value={character.influence[key as keyof typeof FACTIONS]} onChange={e => setCharacter(c => ({ ...c, influence: { ...c.influence, [key]: Number(e.target.value) } }))} className="w-20 bg-slate-900/80 border border-slate-600 rounded-md p-1 text-center" />
                             </div>
                         ))}
                     </div>
                 </Section>
 
                 <Section title="História e Personalidade">
-                   <TextArea value={character.history} onChange={e => updateCharacterField('history', e.target.value)} placeholder="História Pessoal..."/>
-                   <TextArea value={character.personality} onChange={e => updateCharacterField('personality', e.target.value)} placeholder="Personalidade..."/>
-                   <TextArea value={character.objectives} onChange={e => updateCharacterField('objectives', e.target.value)} placeholder="Objetivos..."/>
-                   <TextArea value={character.fears} onChange={e => updateCharacterField('fears', e.target.value)} placeholder="Medos/Fraquezas..."/>
+                    <TextArea value={character.history} onChange={e => updateCharacterField('history', e.target.value)} placeholder="História Pessoal..." />
+                    <TextArea value={character.personality} onChange={e => updateCharacterField('personality', e.target.value)} placeholder="Personalidade..." />
+                    <TextArea value={character.objectives} onChange={e => updateCharacterField('objectives', e.target.value)} placeholder="Objetivos..." />
+                    <TextArea value={character.fears} onChange={e => updateCharacterField('fears', e.target.value)} placeholder="Medos/Fraquezas..." />
                 </Section>
 
-                 <Section title="Segredo Sombrio">
-                    <TextArea value={character.darkSecret} onChange={e => updateCharacterField('darkSecret', e.target.value)} placeholder="Algo que, se descoberto, aumenta sua Penumbra..."/>
-                 </Section>
+                <Section title="Segredo Sombrio">
+                    <TextArea value={character.darkSecret} onChange={e => updateCharacterField('darkSecret', e.target.value)} placeholder="Algo que, se descoberto, aumenta sua Penumbra..." />
+                </Section>
 
-                 <Section title="Anotações da Sessão">
-                    <TextArea value={character.notes} onChange={e => updateCharacterField('notes', e.target.value)} placeholder="Itens, aliados, eventos importantes..." rows={5}/>
-                 </Section>
+                <Section title="Anotações da Sessão">
+                    <TextArea value={character.notes} onChange={e => updateCharacterField('notes', e.target.value)} placeholder="Itens, aliados, eventos importantes..." rows={5} />
+                </Section>
             </div>
         </div>
     );
