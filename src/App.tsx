@@ -7,6 +7,15 @@ import CharacterSheet from './pages/CharacterSheet';
 import type { Character } from './types';
 import { getSharedCharacter } from './service/characterService';
 
+export type Page = 'lore' | 'rules' | 'archetypes' | 'sheet';
+
+export const Section: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
+    <div className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6 shadow-lg animate-fade-in ${className}`}>
+        <h2 className="font-cinzel text-2xl font-bold text-amber-300/90 border-b border-slate-700 pb-3 mb-4">{title}</h2>
+        {children}
+    </div>
+);
+
 export default function App() {
     const [currentUser, setCurrentUser] = useState<string | null>(null);
     const [loadedCharacter, setLoadedCharacter] = useState<Character | null>(null);
@@ -49,14 +58,15 @@ export default function App() {
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
         setCurrentUser(null);
-        setLoadedCharacter(null); 
+        setLoadedCharacter(null); // Limpa também a ficha compartilhada
         window.history.replaceState({}, '', window.location.pathname);
     };
 
     if (isLoading) {
         return <div className="bg-slate-900 text-white h-screen flex justify-center items-center">Carregando...</div>;
     }
-    // Se há uma ficha carregada da URL, mostre a ficha do personagem.
+
+    // Se um personagem foi carregado pela URL, mostre a ficha dele.
     if (loadedCharacter) {
         return (
             <MainLayout onLogout={handleLogout} user={loadedCharacter.player}>
