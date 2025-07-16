@@ -2,9 +2,8 @@
 
 Este é um projeto de uma ficha de personagem interativa e um guia de referência para o sistema de RPG de mesa "Crônicas do Crepúsculo Eterno", um sistema de fantasia medieval focado em one-shots. A aplicação é construída com React, TypeScript e Tailwind CSS.
 
-**Acesse a versão ao vivo aqui:** [https://SEU-USUARIO.github.io/NOME-DO-SEU-REPOSITORIO/](https://SEU-USUARIO.github.io/NOME-DO-SEU-REPOSITORIO/)
+**Acesse a versão ao vivo aqui:** [https://fersx.github.io/cronicas-do-crepusculo/](https://ferhsx.github.io/cronicas-do-crepusculo/)
 
-*(Substitua `SEU-USUARIO` e `NOME-DO-SEU-REPOSITORIO` pelos seus dados)*
 
 ---
 
@@ -31,8 +30,8 @@ Para executar este projeto em sua máquina local, siga os passos abaixo:
 
 1.  **Clone o repositório:**
     ```sh
-    git clone https://github.com/SEU-USUARIO/NOME-DO-SEU-REPOSITORIO.git
-    cd NOME-DO-SEU-REPOSITORIO
+    git clone https://github.com/ferhsx/cronicas-do-crepusculo.git
+    cd cronicas-do-crepusculo
     ```
 
 2.  **Instale as dependências:**
