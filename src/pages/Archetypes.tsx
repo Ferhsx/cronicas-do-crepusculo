@@ -2,7 +2,7 @@
 import React from 'react';
 import { ARCHETYPES } from '../constants';
 import { Archetype, Flame } from '../types';
-import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from './icons';
+import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from '../icons';
 
 const FLAME_ICONS: Record<Flame, React.FC> = {
     [Flame.Ferro]: IronFlameIcon,

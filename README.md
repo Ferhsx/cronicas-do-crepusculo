@@ -32,6 +32,8 @@ Para executar este projeto em sua máquina local, siga os passos abaixo:
     ```sh
     git clone https://github.com/ferhsx/cronicas-do-crepusculo.git
     cd cronicas-do-crepusculo
+    git clone https://github.com/ferhsx/cronicas-do-crepusculo.git
+    cd cronicas-do-crepusculo
     ```
 
 2.  **Instale as dependências:**
