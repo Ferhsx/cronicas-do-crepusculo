@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Page } from '../App';
+import  Page from '../App';
 
+export type Page = 'lore' | 'rules' | 'archetypes' | 'sheet';
 
 interface NavButtonProps {
     page: Page;

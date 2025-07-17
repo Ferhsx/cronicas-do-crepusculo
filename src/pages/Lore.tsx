@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Section } from '../App';
+import Section from '../components/ui/Section';
 
 const Lore = () => {
     return (

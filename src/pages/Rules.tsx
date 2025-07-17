@@ -1,5 +1,5 @@
 import React from 'react';
-import { Section } from '../App';
+import Section from '../components/ui/Section';
 import { DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS } from '../constants';
 import { FLAME_KEYS } from '../types';
 

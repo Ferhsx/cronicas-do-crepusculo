@@ -1,33 +1,16 @@
-
-import React, { useState } from 'react';
-import Navigation from './Navigation';
-import Lore from '../pages/Lore';
-import Rules from '../pages/Rules';
-import Archetypes from '../pages/Archetypes';
-import CharacterSheet from '../pages/CharacterSheet';
-import { Page } from '../App';
-import { Character } from '../types';
+// src/components/MainLayout.tsx (Versão Simplificada e Corrigida)
+import React from 'react';
+import Navigation, { Page } from './Navigation';
 
 export interface MainLayoutProps {
     user: string;
     onLogout: () => void;
-    initialCharacterData?: Character | null;
-    children?: React.ReactNode;
+    activePage: Page;
+    setActivePage: (page: Page) => void;
+    children: React.ReactNode; // Agora ele aceita 'children'
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout, initialCharacterData }) => {
-    const [activePage, setActivePage] = useState<Page>(initialCharacterData ? 'sheet' : 'lore');
-
-    const renderPage = () => {
-        switch (activePage) {
-            case 'lore': return <Lore />;
-            case 'rules': return <Rules />;
-            case 'archetypes': return <Archetypes />;
-            case 'sheet': return <CharacterSheet user={user} initialCharacterData={initialCharacterData ?? null} />;
-            default: return <Lore />;
-        }
-    };
-
+const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout, activePage, setActivePage, children }) => {
     return (
         <div className="min-h-screen bg-slate-900 bg-gradient-to-br from-slate-900 via-indigo-950/20 to-slate-900 p-4 sm:p-6 lg:p-8">
             <header className="text-center mb-8 animate-fade-in relative">
@@ -42,7 +25,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout, initialCharacte
             </header>
             <Navigation activePage={activePage} setActivePage={setActivePage} />
             <main className="max-w-7xl mx-auto mt-8">
-                {renderPage()}
+                {children} {/* O conteúdo da página será renderizado aqui */}
             </main>
         </div>
     );
