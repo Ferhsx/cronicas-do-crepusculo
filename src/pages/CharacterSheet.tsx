@@ -1,9 +1,10 @@
-
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Character, Flame, Archetype, Origin, Difficulty, FLAME_KEYS, EquipmentItem, isWeapon, isArmor, Weapon, Armor, RollResult } from '../types';
 import { ARCHETYPES, ORIGINS, INITIAL_POINTS_TO_DISTRIBUTE, MIN_FLAME_START, MAX_FLAME_START, MAX_PENUMBRA, BASE_HP, DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS, ITEMS } from '../constants';
 import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from '../icons';
 import { saveCharacterForSharing } from '../service/characterService';
+
+// --- SUB-COMPONENTES E CONSTANTES ---
 
 const FLAME_DETAILS: Record<Flame, { icon: React.FC, color: string, description: string }> = {
     [Flame.Ferro]: { icon: IronFlameIcon, color: 'text-red-500', description: 'Força física e resistência' },
@@ -23,59 +24,24 @@ const ImagePlaceholderIcon = () => (
     </svg>
 );
 
-
-const getInitialCharacter = (player: string): Character => {
+export const getInitialCharacter = (player: string): Character => {
     const defaultArchetype = ARCHETYPES[0];
     const defaultOrigin = ORIGINS[0];
-
-    const flames = FLAME_KEYS.reduce((acc, key) => {
-        acc[key] = MIN_FLAME_START;
-        return acc;
-    }, {} as Record<Flame, number>);
-
+    const flames = FLAME_KEYS.reduce((acc, key) => ({ ...acc, [key]: MIN_FLAME_START }), {} as Record<Flame, number>);
     let penumbra = 0;
     let influence = { crepuscular: 0, eterna: 0, brumas: 0, alvorecer: 0 };
     let specialBonuses: string[] = [];
-
     switch (defaultOrigin.id) {
-        case 'nobre':
-            flames[Flame.Jade] += 1;
-            Object.keys(influence).forEach(key => influence[key as keyof typeof influence] += 1);
-            break;
+        case 'nobre': flames[Flame.Jade] += 1; Object.keys(influence).forEach(key => influence[key as keyof typeof influence] += 1); break;
         case 'sobrevivente': flames[Flame.Prata] += 1; penumbra = 1; break;
-        case 'estudioso':
-            flames[Flame.Ouro] += 1;
-            specialBonuses.push("Conhece 1 Eco extra");
-            break;
+        case 'estudioso': flames[Flame.Ouro] += 1; specialBonuses.push("Conhece 1 Eco extra"); break;
         case 'artesao': flames[Flame.Ferro] += 1; break;
     }
-
     let startingInventory = defaultArchetype.startingEquipment.map(id => ({ ...ITEMS[id] })).filter(Boolean);
-
     if (defaultOrigin.id === 'artesao') {
         startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
     }
-
-    return {
-        name: '',
-        player,
-        archetypeId: defaultArchetype.id,
-        originId: defaultOrigin.id,
-        flames,
-        penumbra,
-        hp: BASE_HP + flames[Flame.Ferro] * 3,
-        darkSecret: '',
-        history: '',
-        personality: '',
-        objectives: '',
-        fears: '',
-        notes: '',
-        influence,
-        inventory: startingInventory,
-        equipped: { weapon: null, armor: null },
-        specialBonuses,
-        imageUrl: '',
-    };
+    return { name: '', player, archetypeId: defaultArchetype.id, originId: defaultOrigin.id, flames, penumbra, hp: BASE_HP + flames[Flame.Ferro] * 3, darkSecret: '', history: '', personality: '', objectives: '', fears: '', notes: '', influence, inventory: startingInventory, equipped: { weapon: null, armor: null }, specialBonuses, imageUrl: '' };
 };
 
 const Section: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
@@ -88,21 +54,12 @@ const Section: React.FC<{ title: string; children: React.ReactNode; className?: 
 const ShareCharacter: React.FC<{ character: Character }> = ({ character }) => {
     const [copySuccess, setCopySuccess] = useState('');
     const [isSharing, setIsSharing] = useState(false);
-
     const handleShare = async () => {
-        if (!character.name.trim()) {
-            setCopySuccess('Dê um nome ao seu personagem primeiro!');
-            setTimeout(() => setCopySuccess(''), 3000);
-            return;
-        }
+        if (!character.name.trim()) { setCopySuccess('Dê um nome ao seu personagem primeiro!'); setTimeout(() => setCopySuccess(''), 3000); return; }
         setIsSharing(true);
         try {
-            // 1. CHAMA O SERVIÇO para salvar a ficha e obter o ID
             const characterId = await saveCharacterForSharing(character);
-
-            // 2. Cria a URL limpa com o ID
             const url = `${window.location.origin}${window.location.pathname}?id=${characterId}`;
-
             await navigator.clipboard.writeText(url);
             setCopySuccess('Link curto copiado para a área de transferência!');
         } catch (err) {
@@ -113,32 +70,19 @@ const ShareCharacter: React.FC<{ character: Character }> = ({ character }) => {
             setTimeout(() => setCopySuccess(''), 3000);
         }
     };
-    
     return (
         <Section title="Compartilhar Ficha">
-            <p className="text-sm text-slate-400 mb-4">
-                Gere um link para compartilhar sua ficha. Qualquer pessoa com o link poderá ver a sua ficha atual.
-            </p>
-            <button
-                onClick={handleShare}
-                className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-                Gerar e Copiar Link
+            <p className="text-sm text-slate-400 mb-4">Gere um link para compartilhar sua ficha. Qualquer pessoa com o link poderá ver a sua ficha atual.</p>
+            <button onClick={handleShare} disabled={isSharing} className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-sky-800 disabled:cursor-not-allowed">
+                {isSharing ? 'Gerando...' : 'Gerar e Copiar Link'}
             </button>
             {copySuccess && <p className={`text-center mt-3 text-sm transition-opacity ${copySuccess.includes('Falha') || copySuccess.includes('nome') ? 'text-red-400' : 'text-green-400'}`}>{copySuccess}</p>}
         </Section>
     );
 };
 
-
 const TextArea: React.FC<{ value: string; onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; placeholder: string; rows?: number }> = ({ value, onChange, placeholder, rows = 3 }) => (
-    <textarea
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        rows={rows}
-        className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-slate-300 resize-y"
-    />
+    <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-slate-300 resize-y" />
 );
 
 const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ character, setCharacter }) => {
@@ -146,274 +90,57 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
     const [selectedFlame, setSelectedFlame] = useState<Flame>(Flame.Ferro);
     const [selectedDifficulty, setSelectedDifficulty] = useState<number>(DIFFICULTIES[1].value);
     const [activeTab, setActiveTab] = useState<'test' | 'combat'>('test');
-
     const getPenumbraEffects = useCallback(() => {
         const p = character.penumbra;
         if (p >= 7) return { test: -2, ruby: 2 };
         if (p >= 4) return { test: -1, ruby: 1 };
         return { test: 0, ruby: 0 };
     }, [character.penumbra]);
-
     const rollDice = (diceCount: number) => {
-        let total = 0;
-        let rolls = [];
-        for (let i = 0; i < diceCount; i++) {
-            const roll = Math.floor(Math.random() * 6) + 1;
-            rolls.push(roll);
-            total += roll;
-        }
+        let total = 0, rolls = [];
+        for (let i = 0; i < diceCount; i++) { const roll = Math.floor(Math.random() * 6) + 1; rolls.push(roll); total += roll; }
         return { total, rolls };
     };
-
     const handleRoll = (type: RollResult['type']) => {
         const penumbra = getPenumbraEffects();
         let result: RollResult;
-
         switch (type) {
-            case 'Iniciativa': {
-                const { total, rolls } = rollDice(1);
-                const finalResult = total + character.flames[Flame.Prata];
-                result = { type, diceCount: 1, rolls, flameType: Flame.Prata, flameValue: character.flames[Flame.Prata], total: finalResult };
-                break;
-            }
-            case 'Teste': {
-                const { total, rolls } = rollDice(2);
-                const flameValue = character.flames[selectedFlame];
-                const modifier = selectedFlame === Flame.Rubi ? penumbra.ruby : penumbra.test;
-                const finalResult = total + flameValue + modifier;
-                result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, penumbraModifier: modifier, difficulty: selectedDifficulty, total: finalResult, success: finalResult >= selectedDifficulty };
-                break;
-            }
-            case 'Ataque': {
-                const { total: diceTotal, rolls } = rollDice(2);
-                const flameValue = character.flames[selectedFlame];
-                const weaponBonus = character.equipped.weapon?.damageBonus ?? 0;
-
-                const crepuscularRoll = Math.floor(Math.random() * 6) + 1;
-                let crepuscularEffect = "Golpe Normal.";
-                let crepuscularDamageRoll: number | undefined;
-
-                if (crepuscularRoll >= 3 && crepuscularRoll <= 4) {
-                    const { total } = rollDice(1);
-                    crepuscularDamageRoll = total;
-                    crepuscularEffect = `+${crepuscularDamageRoll} Dano, +1 Penumbra.`;
-                    setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) }));
-                } else if (crepuscularRoll >= 5) {
-                    crepuscularEffect = `Dano Crítico (dobrado), +2 Penumbra.`;
-                    setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2) }));
-                }
-
-                const finalResult = diceTotal + flameValue + weaponBonus;
-                result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, bonus: weaponBonus, bonusSource: character.equipped.weapon?.name, total: finalResult, crepuscularRoll, crepuscularEffect, crepuscularDamageRoll };
-                break;
-            }
-            case 'Defesa': {
-                const { total, rolls } = rollDice(2);
-                const flameValue = character.flames[Flame.Prata];
-                const armorBonus = character.equipped.armor?.defenseBonus ?? 0;
-                const finalResult = total + flameValue + armorBonus;
-                result = { type, diceCount: 2, rolls, flameType: Flame.Prata, flameValue, bonus: armorBonus, bonusSource: character.equipped.armor?.name, total: finalResult };
-                break;
-            }
+            case 'Iniciativa': { const { total, rolls } = rollDice(1); const finalResult = total + character.flames[Flame.Prata]; result = { type, diceCount: 1, rolls, flameType: Flame.Prata, flameValue: character.flames[Flame.Prata], total: finalResult }; break; }
+            case 'Teste': { const { total, rolls } = rollDice(2); const flameValue = character.flames[selectedFlame]; const modifier = selectedFlame === Flame.Rubi ? penumbra.ruby : penumbra.test; const finalResult = total + flameValue + modifier; result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, penumbraModifier: modifier, difficulty: selectedDifficulty, total: finalResult, success: finalResult >= selectedDifficulty }; break; }
+            case 'Ataque': { const { total: diceTotal, rolls } = rollDice(2); const flameValue = character.flames[selectedFlame]; const weaponBonus = character.equipped.weapon?.damageBonus ?? 0; const crepuscularRoll = Math.floor(Math.random() * 6) + 1; let crepuscularEffect = "Golpe Normal."; let crepuscularDamageRoll: number | undefined; if (crepuscularRoll >= 3 && crepuscularRoll <= 4) { const { total } = rollDice(1); crepuscularDamageRoll = total; crepuscularEffect = `+${crepuscularDamageRoll} Dano, +1 Penumbra.`; setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) })); } else if (crepuscularRoll >= 5) { crepuscularEffect = `Dano Crítico (dobrado), +2 Penumbra.`; setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2) })); } const finalResult = diceTotal + flameValue + weaponBonus; result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, bonus: weaponBonus, bonusSource: character.equipped.weapon?.name, total: finalResult, crepuscularRoll, crepuscularEffect, crepuscularDamageRoll }; break; }
+            case 'Defesa': { const { total, rolls } = rollDice(2); const flameValue = character.flames[Flame.Prata]; const armorBonus = character.equipped.armor?.defenseBonus ?? 0; const finalResult = total + flameValue + armorBonus; result = { type, diceCount: 2, rolls, flameType: Flame.Prata, flameValue, bonus: armorBonus, bonusSource: character.equipped.armor?.name, total: finalResult }; break; }
         }
         setRollResult(result);
     };
-
     const renderResult = () => {
         if (!rollResult) return null;
-
         const { type, total, success, rolls, flameType, flameValue, penumbraModifier, bonus, bonusSource, difficulty, crepuscularRoll, crepuscularEffect } = rollResult;
-
-        const calculation = [
-            `${rollResult.diceCount}d6(${rolls.join('+')})`,
-            flameValue ? `${flameValue} ${flameType?.split(' ')[2]}` : null,
-            bonus ? `${bonus} ${bonusSource}` : null,
-            penumbraModifier ? `${penumbraModifier > 0 ? '+' : ''}${penumbraModifier} Penumbra` : null
-        ].filter(Boolean).join(' + ');
-
+        const calculation = [`${rollResult.diceCount}d6(${rolls.join('+')})`, flameValue ? `${flameValue} ${flameType?.split(' ')[2]}` : null, bonus ? `${bonus} ${bonusSource}` : null, penumbraModifier ? `${penumbraModifier > 0 ? '+' : ''}${penumbraModifier} Penumbra` : null].filter(Boolean).join(' + ');
         const isSuccess = success === true ? 'bg-green-500/20 text-green-300 border-green-500' : success === false ? 'bg-red-500/20 text-red-300 border-red-500' : 'bg-slate-900/50 text-amber-200 border-slate-700';
-
-        return (
-            <div className={`p-3 rounded-md border text-center animate-fade-in ${isSuccess}`}>
-                <h4 className="font-bold text-lg">{type}: {total}</h4>
-                <p className="font-mono text-sm">{calculation}</p>
-                {difficulty && <p className="text-xs">Dificuldade: {difficulty} - {success ? 'Sucesso!' : 'Falha'}</p>}
-                {crepuscularRoll && <p className="text-xs mt-1 pt-1 border-t border-slate-600">Golpe Crepuscular (d6: {crepuscularRoll}): {crepuscularEffect}</p>}
-            </div>
-        )
+        return (<div className={`p-3 rounded-md border text-center animate-fade-in ${isSuccess}`}><h4 className="font-bold text-lg">{type}: {total}</h4><p className="font-mono text-sm">{calculation}</p>{difficulty && <p className="text-xs">Dificuldade: {difficulty} - {success ? 'Sucesso!' : 'Falha'}</p>}{crepuscularRoll && <p className="text-xs mt-1 pt-1 border-t border-slate-600">Golpe Crepuscular (d6: {crepuscularRoll}): {crepuscularEffect}</p>}</div>)
     }
-
-    const TabButton: React.FC<{ tabId: 'test' | 'combat', children: React.ReactNode }> = ({ tabId, children }) => (
-        <button onClick={() => setActiveTab(tabId)} className={`flex-1 pb-2 font-cinzel text-lg border-b-2 ${activeTab === tabId ? 'border-amber-400 text-amber-300' : 'border-slate-700 text-slate-400'}`}>
-            {children}
-        </button>
-    );
-
-    return (
-        <Section title="Dados de Crepúsculo">
-            <div className="flex mb-4">
-                <TabButton tabId='test'>Teste</TabButton>
-                <TabButton tabId='combat'>Combate</TabButton>
-            </div>
-
-            {activeTab === 'test' && (
-                <div className="space-y-4 animate-fade-in">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label htmlFor="flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama Relevante</label>
-                            <select id="flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                                {FLAME_KEYS.map(f => <option key={f} value={f}>{f}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="difficulty-select" className="block text-sm font-medium text-slate-400 mb-1">Dificuldade</label>
-                            <select id="difficulty-select" value={selectedDifficulty} onChange={e => setSelectedDifficulty(Number(e.target.value))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                                {DIFFICULTIES.map(d => <option key={d.name} value={d.value}>{d.name} ({d.value})</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <button onClick={() => handleRoll('Teste')} className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors">Rolar Teste (2d6)</button>
-                </div>
-            )}
-
-            {activeTab === 'combat' && (
-                <div className="space-y-4 animate-fade-in">
-                    <div className="text-center">
-                        <label htmlFor="combat-flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama de Ataque</label>
-                        <select id="combat-flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                            {[Flame.Ferro, Flame.Prata].map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => handleRoll('Iniciativa')} className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Iniciativa (1d6)</button>
-                        <button onClick={() => handleRoll('Ataque')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Ataque (2d6)</button>
-                        <button onClick={() => handleRoll('Defesa')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Defesa (2d6)</button>
-                    </div>
-                </div>
-            )}
-
-            {rollResult && <div className="mt-4">{renderResult()}</div>}
-        </Section>
-    );
+    const TabButton: React.FC<{ tabId: 'test' | 'combat', children: React.ReactNode }> = ({ tabId, children }) => (<button onClick={() => setActiveTab(tabId)} className={`flex-1 pb-2 font-cinzel text-lg border-b-2 ${activeTab === tabId ? 'border-amber-400 text-amber-300' : 'border-slate-700 text-slate-400'}`}>{children}</button>);
+    return (<Section title="Dados de Crepúsculo"><div className="flex mb-4"><TabButton tabId='test'>Teste</TabButton><TabButton tabId='combat'>Combate</TabButton></div>{activeTab === 'test' && (<div className="space-y-4 animate-fade-in"><div className="grid grid-cols-2 gap-4"><div><label htmlFor="flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama Relevante</label><select id="flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{FLAME_KEYS.map(f => <option key={f} value={f}>{f}</option>)}</select></div><div><label htmlFor="difficulty-select" className="block text-sm font-medium text-slate-400 mb-1">Dificuldade</label><select id="difficulty-select" value={selectedDifficulty} onChange={e => setSelectedDifficulty(Number(e.target.value))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{DIFFICULTIES.map(d => <option key={d.name} value={d.value}>{d.name} ({d.value})</option>)}</select></div></div><button onClick={() => handleRoll('Teste')} className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors">Rolar Teste (2d6)</button></div>)}{activeTab === 'combat' && (<div className="space-y-4 animate-fade-in"><div className="text-center"><label htmlFor="combat-flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama de Ataque</label><select id="combat-flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{[Flame.Ferro, Flame.Prata].map(f => <option key={f} value={f}>{f}</option>)}</select></div><div className="grid grid-cols-3 gap-2"><button onClick={() => handleRoll('Iniciativa')} className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Iniciativa (1d6)</button><button onClick={() => handleRoll('Ataque')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Ataque (2d6)</button><button onClick={() => handleRoll('Defesa')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Defesa (2d6)</button></div></div>)}{rollResult && <div className="mt-4">{renderResult()}</div>}</Section>);
 };
 
 const EquipmentAndInventory: React.FC<{ character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ character, setCharacter }) => {
-
-    const handleEquip = (itemToEquip: EquipmentItem) => {
-        setCharacter(prev => {
-            const newInventory = prev.inventory.filter(i => i.id !== itemToEquip.id);
-            const newEquipped = { ...prev.equipped };
-
-            if (isWeapon(itemToEquip)) {
-                if (prev.equipped.weapon) newInventory.push(prev.equipped.weapon);
-                newEquipped.weapon = itemToEquip;
-            } else if (isArmor(itemToEquip)) {
-                if (prev.equipped.armor) newInventory.push(prev.equipped.armor);
-                newEquipped.armor = itemToEquip;
-            } else {
-                newInventory.push(itemToEquip);
-            }
-
-            return { ...prev, inventory: newInventory, equipped: newEquipped };
-        });
-    };
-
-    const handleUnequip = (type: 'weapon' | 'armor') => {
-        setCharacter(prev => {
-            const itemToUnequip = prev.equipped[type];
-            if (!itemToUnequip) return prev;
-
-            const newInventory = [...prev.inventory, itemToUnequip];
-            const newEquipped = { ...prev.equipped, [type]: null };
-
-            return { ...prev, inventory: newInventory, equipped: newEquipped };
-        });
-    };
-
-    const handleDelete = (itemId: string) => {
-        setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== itemId) }));
-    }
-
-    const EquippedItem: React.FC<{ label: string, item: Weapon | Armor | null, onUnequip: () => void }> = ({ label, item, onUnequip }) => (
-        <div>
-            <h4 className="font-bold text-slate-300">{label}</h4>
-            {item ? (
-                <div className="flex items-center justify-between bg-slate-700/50 p-2 rounded-md">
-                    <div>
-                        <p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p>
-                        <p className="text-xs text-amber-300">
-                            {isWeapon(item) && `+${item.damageBonus} Dano`}
-                            {isArmor(item) && `+${item.defenseBonus} Defesa`}
-                        </p>
-                    </div>
-                    <button onClick={onUnequip} className="text-xs bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded">Desequipar</button>
-                </div>
-            ) : <p className="text-slate-400 text-sm p-2">Nenhum</p>}
-        </div>
-    );
-
-    return (
-        <Section title="Equipamento e Inventário">
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <EquippedItem label="Arma Equipada" item={character.equipped.weapon} onUnequip={() => handleUnequip('weapon')} />
-                    <EquippedItem label="Armadura Equipada" item={character.equipped.armor} onUnequip={() => handleUnequip('armor')} />
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-300 mb-2">Inventário</h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                        {character.inventory.length > 0 ? character.inventory.map(item => (
-                            <div key={item.id} className="flex items-center justify-between bg-slate-900/60 p-2 rounded-md">
-                                <div>
-                                    <p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p>
-                                    <p className="text-xs text-slate-400">{item.description}</p>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                    {(isWeapon(item) || isArmor(item)) && <button onClick={() => handleEquip(item)} className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Equipar</button>}
-                                    <button onClick={() => handleDelete(item.id)} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">X</button>
-                                </div>
-                            </div>
-                        )) : <p className="text-slate-400 text-sm">Inventário vazio.</p>}
-                    </div>
-                </div>
-            </div>
-        </Section>
-    );
+    const handleEquip = (itemToEquip: EquipmentItem) => { setCharacter(prev => { const newInventory = prev.inventory.filter(i => i.id !== itemToEquip.id); const newEquipped = { ...prev.equipped }; if (isWeapon(itemToEquip)) { if (prev.equipped.weapon) newInventory.push(prev.equipped.weapon); newEquipped.weapon = itemToEquip; } else if (isArmor(itemToEquip)) { if (prev.equipped.armor) newInventory.push(prev.equipped.armor); newEquipped.armor = itemToEquip; } else { newInventory.push(itemToEquip); } return { ...prev, inventory: newInventory, equipped: newEquipped }; }); };
+    const handleUnequip = (type: 'weapon' | 'armor') => { setCharacter(prev => { const itemToUnequip = prev.equipped[type]; if (!itemToUnequip) return prev; const newInventory = [...prev.inventory, itemToUnequip]; const newEquipped = { ...prev.equipped, [type]: null }; return { ...prev, inventory: newInventory, equipped: newEquipped }; }); };
+    const handleDelete = (itemId: string) => { setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== itemId) })); }
+    const EquippedItem: React.FC<{ label: string, item: Weapon | Armor | null, onUnequip: () => void }> = ({ label, item, onUnequip }) => (<div><h4 className="font-bold text-slate-300">{label}</h4>{item ? (<div className="flex items-center justify-between bg-slate-700/50 p-2 rounded-md"><div><p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p><p className="text-xs text-amber-300">{isWeapon(item) && `+${item.damageBonus} Dano`}{isArmor(item) && `+${item.defenseBonus} Defesa`}</p></div><button onClick={onUnequip} className="text-xs bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded">Desequipar</button></div>) : <p className="text-slate-400 text-sm p-2">Nenhum</p>}</div>);
+    return (<Section title="Equipamento e Inventário"><div className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><EquippedItem label="Arma Equipada" item={character.equipped.weapon} onUnequip={() => handleUnequip('weapon')} /><EquippedItem label="Armadura Equipada" item={character.equipped.armor} onUnequip={() => handleUnequip('armor')} /></div><div><h4 className="font-bold text-slate-300 mb-2">Inventário</h4><div className="space-y-2 max-h-48 overflow-y-auto pr-2">{character.inventory.length > 0 ? character.inventory.map(item => (<div key={item.id} className="flex items-center justify-between bg-slate-900/60 p-2 rounded-md"><div><p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p><p className="text-xs text-slate-400">{item.description}</p></div><div className="flex items-center space-x-1">{(isWeapon(item) || isArmor(item)) && <button onClick={() => handleEquip(item)} className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Equipar</button>}<button onClick={() => handleDelete(item.id)} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">X</button></div></div>)) : <p className="text-slate-400 text-sm">Inventário vazio.</p>}</div></div></div></Section>);
 }
 
-export default function CharacterSheet({ user, initialCharacterData }: { user: string, initialCharacterData: Character | null }) {
-    const [character, setCharacter] = useState<Character>(() => {
-        if (initialCharacterData) {
-            return initialCharacterData;
-        }
-        const savedData = localStorage.getItem(`character_sheet_${user}`);
-        return savedData ? JSON.parse(savedData) : getInitialCharacter(user);
-    });
-    const [isCreating, setIsCreating] = useState(() => {
-        if (initialCharacterData) {
-            return false;
-        }
-        const savedData = localStorage.getItem(`character_sheet_${user}`);
-        return !savedData || !JSON.parse(savedData).name;
-    });
+// --- COMPONENTE PRINCIPAL ---
 
-    useEffect(() => {
-        if (initialCharacterData) {
-            setCharacter(initialCharacterData);
-            setIsCreating(false);
-        }
-    }, [initialCharacterData]);
-
-    useEffect(() => {
-        localStorage.setItem(`character_sheet_${user}`, JSON.stringify(character));
-    }, [character, user]);
-
+export default function CharacterSheet({ character, setCharacter }: { character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }) {
+    
+    const [isCreating, setIsCreating] = useState(() => !character.name);
 
     const baseFlames = useMemo(() => {
         const flames = { ...character.flames };
         const origin = ORIGINS.find(o => o.id === character.originId);
         if (!origin) return flames;
-
         switch (origin.id) {
             case 'nobre': flames[Flame.Jade]--; break;
             case 'estudioso': flames[Flame.Ouro]--; break;
@@ -435,154 +162,69 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
 
     const updateCharacterField = useCallback(<K extends keyof Character>(key: K, value: Character[K]) => {
         setCharacter(prev => ({ ...prev, [key]: value }));
-    }, []);
+    }, [setCharacter]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        if (file.size > 2 * 1024 * 1024) { // 2MB limit
-            alert("A imagem é muito grande. Por favor, escolha uma imagem menor que 2MB.");
-            e.target.value = ''; // Clear the input
-            return;
-        }
-
+        if (file.size > 2 * 1024 * 1024) { alert("A imagem é muito grande. Por favor, escolha uma imagem menor que 2MB."); e.target.value = ''; return; }
         const reader = new FileReader();
-        reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                updateCharacterField('imageUrl', reader.result);
-            }
-        };
-        reader.onerror = (error) => {
-            console.error("Erro ao ler a imagem:", error);
-            alert("Ocorreu um erro ao carregar a imagem.");
-        };
+        reader.onload = () => { if (typeof reader.result === 'string') updateCharacterField('imageUrl', reader.result); };
+        reader.onerror = (error) => console.error("Erro ao ler a imagem:", error);
         reader.readAsDataURL(file);
     };
 
-
     const handleFlameChange = useCallback((flame: Flame, change: number) => {
         if (!isCreating) return;
-
-        if (change > 0 && pointsRemaining <= 0) {
-            alert("Você não tem mais pontos para distribuir.");
-            return;
-        }
-
+        if (change > 0 && pointsRemaining <= 0) return;
         const currentBaseValue = baseFlames[flame];
         const newBaseValue = currentBaseValue + change;
-
-        if (newBaseValue < MIN_FLAME_START || newBaseValue > MAX_FLAME_START) {
-            return;
-        }
-
+        if (newBaseValue < MIN_FLAME_START || newBaseValue > MAX_FLAME_START) return;
         setCharacter(prev => {
             const newFlames = { ...prev.flames, [flame]: prev.flames[flame] + change };
             const newHp = BASE_HP + newFlames[Flame.Ferro] * 3;
             return { ...prev, flames: newFlames, hp: newHp };
         });
-    }, [isCreating, pointsRemaining, baseFlames]);
+    }, [isCreating, pointsRemaining, baseFlames, setCharacter]);
 
     const handleArchetypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newArchetypeId = e.target.value;
         const newArchetype = ARCHETYPES.find(a => a.id === newArchetypeId)!;
         let startingInventory = newArchetype.startingEquipment.map(id => ({ ...ITEMS[id] })).filter(Boolean);
-
-        if (character.originId === 'artesao') {
-            startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
-        }
-
-        setCharacter(prev => ({
-            ...prev,
-            archetypeId: newArchetypeId,
-            inventory: startingInventory,
-            equipped: { weapon: null, armor: null }
-        }));
+        if (character.originId === 'artesao') { startingInventory = startingInventory.map(item => ({ ...item, isMagical: true })); }
+        setCharacter(prev => ({ ...prev, archetypeId: newArchetypeId, inventory: startingInventory, equipped: { weapon: null, armor: null } }));
     };
 
     const handleOriginChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newOriginId = e.target.value;
-
         setCharacter(prev => {
             const oldOrigin = ORIGINS.find(o => o.id === prev.originId)!;
             const newOrigin = ORIGINS.find(o => o.id === newOriginId)!;
-
             let newFlames = { ...prev.flames };
             let newPenumbra = prev.penumbra;
             let newInfluence = { ...prev.influence };
             let newSpecialBonuses = prev.specialBonuses ? [...prev.specialBonuses] : [];
             let newInventory = prev.inventory.map(item => ({ ...item }));
-
             switch (oldOrigin.id) {
-                case 'nobre':
-                    newFlames[Flame.Jade] = Math.max(MIN_FLAME_START, newFlames[Flame.Jade] - 1);
-                    Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] = Math.max(0, newInfluence[key as keyof typeof newInfluence] - 1));
-                    break;
-                case 'sobrevivente':
-                    newPenumbra = Math.max(0, newPenumbra - 1);
-                    newFlames[Flame.Prata] = Math.max(MIN_FLAME_START, newFlames[Flame.Prata] - 1);
-                    break;
-                case 'estudioso':
-                    newFlames[Flame.Ouro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ouro] - 1);
-                    newSpecialBonuses = newSpecialBonuses.filter(b => b !== "Conhece 1 Eco extra");
-                    break;
-                case 'artesao':
-                    newFlames[Flame.Ferro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ferro] - 1);
-                    newInventory = newInventory.map(item => {
-                        delete item.isMagical;
-                        return item;
-                    });
-                    break;
+                case 'nobre': newFlames[Flame.Jade] = Math.max(MIN_FLAME_START, newFlames[Flame.Jade] - 1); Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] = Math.max(0, newInfluence[key as keyof typeof newInfluence] - 1)); break;
+                case 'sobrevivente': newPenumbra = Math.max(0, newPenumbra - 1); newFlames[Flame.Prata] = Math.max(MIN_FLAME_START, newFlames[Flame.Prata] - 1); break;
+                case 'estudioso': newFlames[Flame.Ouro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ouro] - 1); newSpecialBonuses = newSpecialBonuses.filter(b => b !== "Conhece 1 Eco extra"); break;
+                case 'artesao': newFlames[Flame.Ferro] = Math.max(MIN_FLAME_START, newFlames[Flame.Ferro] - 1); newInventory = newInventory.map(item => { delete item.isMagical; return item; }); break;
             }
-
             switch (newOrigin.id) {
-                case 'nobre':
-                    newFlames[Flame.Jade] += 1;
-                    Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] += 1);
-                    break;
-                case 'sobrevivente':
-                    newPenumbra += 1;
-                    newFlames[Flame.Prata] += 1;
-                    break;
-                case 'estudioso':
-                    newFlames[Flame.Ouro] += 1;
-                    if (!newSpecialBonuses.includes("Conhece 1 Eco extra")) {
-                        newSpecialBonuses.push("Conhece 1 Eco extra");
-                    }
-                    break;
-                case 'artesao':
-                    newFlames[Flame.Ferro] += 1;
-                    const archetype = ARCHETYPES.find(a => a.id === prev.archetypeId);
-                    if (archetype) {
-                        const startingIds = archetype.startingEquipment;
-                        newInventory = newInventory.map(item => {
-                            if (startingIds.includes(item.id)) {
-                                return { ...item, isMagical: true };
-                            }
-                            return item;
-                        })
-                    }
-                    break;
+                case 'nobre': newFlames[Flame.Jade] += 1; Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] += 1); break;
+                case 'sobrevivente': newPenumbra += 1; newFlames[Flame.Prata] += 1; break;
+                case 'estudioso': newFlames[Flame.Ouro] += 1; if (!newSpecialBonuses.includes("Conhece 1 Eco extra")) { newSpecialBonuses.push("Conhece 1 Eco extra"); } break;
+                case 'artesao': newFlames[Flame.Ferro] += 1; const archetype = ARCHETYPES.find(a => a.id === prev.archetypeId); if (archetype) { const startingIds = archetype.startingEquipment; newInventory = newInventory.map(item => { if (startingIds.includes(item.id)) { return { ...item, isMagical: true }; } return item; })} break;
             }
-
             const newHp = BASE_HP + newFlames[Flame.Ferro] * 3;
             return { ...prev, originId: newOriginId, flames: newFlames, penumbra: newPenumbra, hp: newHp, influence: newInfluence, specialBonuses: newSpecialBonuses, inventory: newInventory };
         });
     };
 
     const handleFinalizeCreation = () => {
-        if (pointsRemaining < 0) {
-            alert(`Você gastou ${-pointsRemaining} pontos a mais! Reduza alguns atributos antes de finalizar.`);
-            return;
-        }
-        if (pointsRemaining > 0) {
-            alert(`Você ainda tem ${pointsRemaining} pontos para distribuir nas Chamas.`);
-            return;
-        }
-        if (!character.name.trim()) {
-            alert('Por favor, insira o nome do personagem.');
-            return;
-        }
+        if (pointsRemaining !== 0) { alert(`Você precisa usar todos os ${INITIAL_POINTS_TO_DISTRIBUTE} pontos.`); return; }
+        if (!character.name.trim()) { alert('Por favor, insira o nome do personagem.'); return; }
         setIsCreating(false);
     };
 
@@ -591,42 +233,19 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
     const plusButtonClass = "bg-green-800 h-8 w-8 rounded-full disabled:bg-slate-700 disabled:cursor-not-allowed";
     const minusButtonClass = "bg-red-800 h-8 w-8 rounded-full disabled:bg-slate-700 disabled:cursor-not-allowed";
     const penumbraPlusButtonClass = "bg-purple-800 h-8 w-8 rounded-full disabled:bg-slate-700 disabled:cursor-not-allowed";
-
-
+    
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
             <div className="lg:col-span-1 space-y-6">
                 <Section title="Identidade">
                     <div className="flex items-start space-x-4">
-                        {/* Image Display & Upload */}
                         <div className="w-28 h-28 bg-slate-900/80 border border-slate-600 rounded-lg flex-shrink-0 group relative overflow-hidden">
-                            {character.imageUrl ? (
-                                <img src={character.imageUrl} alt="Retrato do Personagem" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                    <ImagePlaceholderIcon />
-                                </div>
-                            )}
-                            <label htmlFor="image-upload" className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                Trocar
-                            </label>
-                            <input
-                                id="image-upload"
-                                type="file"
-                                accept="image/png, image/jpeg, image/webp"
-                                className="hidden"
-                                onChange={handleImageUpload}
-                            />
+                            {character.imageUrl ? (<img src={character.imageUrl} alt="Retrato do Personagem" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center"><ImagePlaceholderIcon /></div>)}
+                            <label htmlFor="image-upload" className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">Trocar</label>
+                            <input id="image-upload" type="file" accept="image/png, image/jpeg, image/webp" className="hidden" onChange={handleImageUpload} />
                         </div>
-                        {/* Character Info */}
                         <div className="flex-grow space-y-3">
-                            <input
-                                type="text"
-                                placeholder="Nome do Personagem"
-                                value={character.name}
-                                onChange={e => updateCharacterField('name', e.target.value)}
-                                className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-lg"
-                            />
+                            <input type="text" placeholder="Nome do Personagem" value={character.name} onChange={e => updateCharacterField('name', e.target.value)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-lg" />
                             <p className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 text-slate-400">Jogador: {character.player}</p>
                         </div>
                     </div>
@@ -655,7 +274,6 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
                             <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp + 1 }))} className={plusButtonClass} disabled={isCreating}>+</button>
                         </div>
                     </div>
-
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="font-bold text-lg">Penumbra</span>
@@ -672,7 +290,6 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
                 </Section>
 
                 <ShareCharacter character={character} />
-
                 <DiceRoller character={character} setCharacter={setCharacter} />
             </div>
 
@@ -723,7 +340,6 @@ export default function CharacterSheet({ user, initialCharacterData }: { user: s
                 </Section>
 
                 <EquipmentAndInventory character={character} setCharacter={setCharacter} />
-
             </div>
 
             <div className="lg:col-span-1 space-y-6">
