@@ -276,14 +276,14 @@ const EcosSection: React.FC<{ character: Character, setCharacter: React.Dispatch
     const [customEco, setCustomEco] = useState({ name: '', description: '', cost: '' });
 
     const handleRemoveEco = (ecoIdToRemove: string) => {
-        setCharacter(prev => ({ ...prev, ecos: prev.ecos.filter(eco => eco.id !== ecoIdToRemove) }));
+        setCharacter(prev => ({ ...prev, ecos: (prev.ecos || []).filter(eco => eco.id !== ecoIdToRemove) }));
     };
 
     const handleAddEcoFromList = () => {
         if (!selectedEcoId) return;
         const ecoToAdd = ECOS.find(e => e.id === selectedEcoId);
         if (ecoToAdd && !character.ecos.some(e => e.id === ecoToAdd.id)) {
-            setCharacter(prev => ({ ...prev, ecos: [...prev.ecos, ecoToAdd] }));
+            setCharacter(prev => ({ ...prev, ecos: [...(prev.ecos || []), ecoToAdd] }));
         }
     };
 
@@ -298,7 +298,7 @@ const EcosSection: React.FC<{ character: Character, setCharacter: React.Dispatch
             id: `custom_${Date.now()}`,
             isCustom: true,
         };
-        setCharacter(prev => ({ ...prev, ecos: [...prev.ecos, newCustomEco] }));
+        setCharacter(prev => ({ ...prev, ecos: [...(prev.ecos || []), newCustomEco]  }));
         setCustomEco({ name: '', description: '', cost: '' });
     };
 
