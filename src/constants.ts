@@ -48,6 +48,36 @@ export const ECOS: Eco[] = [
     name: 'Lâmina Crepuscular',
     description: 'Seu próximo ataque com arma neste turno causa +1d6 de dano e conta como mágico.',
     cost: '1 Ação Menor'
+  },
+  {
+    id: 'escudo_etereo',
+    name: 'Escudo Etéreo',
+    description: 'Cria um escudo de energia que absorve 1d6 de dano de qualquer fonte.',
+    cost: '1 Ação, 2 Penumbra'
+  },
+  {
+    id: 'visao_penumbra',
+    name: 'Visão na Penumbra',
+    description: 'Permite enxergar no escuro e detectar criaturas invisíveis ou ocultas.',
+    cost: '1 Ação Menor, 1 Penumbra'
+  },
+  {
+    id: 'eco_de_luz',
+    name: 'Eco de Luz',
+    description: 'Cria uma luz temporária que ilumina uma área de 10 metros por 1 minuto.',
+    cost: '1 Ação Menor, 1 Penumbra'
+  },
+  {
+    id: 'selo_de_paz',
+    name: 'Selo de Paz',
+    description: 'Imobiliza uma criatura por 1 rodada, impedindo-a de agir.',
+    cost: '1 Ação, 2 Penumbra'
+  },
+  {
+    id: 'caminho_silencioso',
+    name: 'Caminho Silencioso',
+    description: 'Permite mover-se sem fazer barulho por 1 rodada, ignorando armadilhas sonoras.',
+    cost: '1 Ação Menor, 1 Penumbra'
   }
 ];
 
