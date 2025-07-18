@@ -27,21 +27,52 @@ const ImagePlaceholderIcon = () => (
 export const getInitialCharacter = (player: string): Character => {
     const defaultArchetype = ARCHETYPES[0];
     const defaultOrigin = ORIGINS[0];
+
     const flames = FLAME_KEYS.reduce((acc, key) => ({ ...acc, [key]: MIN_FLAME_START }), {} as Record<Flame, number>);
+
     let penumbra = 0;
     let influence = { crepuscular: 0, eterna: 0, brumas: 0, alvorecer: 0 };
+    
+    // GARANTIA: Inicia `specialBonuses` como um array vazio.
     let specialBonuses: string[] = [];
+
     switch (defaultOrigin.id) {
         case 'nobre': flames[Flame.Jade] += 1; Object.keys(influence).forEach(key => influence[key as keyof typeof influence] += 1); break;
         case 'sobrevivente': flames[Flame.Prata] += 1; penumbra = 1; break;
         case 'estudioso': flames[Flame.Ouro] += 1; specialBonuses.push("Conhece 1 Eco extra"); break;
         case 'artesao': flames[Flame.Ferro] += 1; break;
     }
-    let startingInventory = defaultArchetype.startingEquipment.map(id => ({ ...ITEMS[id] })).filter(Boolean);
+
+    // GARANTIA: Filtra quaisquer itens que possam ser undefined se o ID estiver errado em constants.ts.
+    let startingInventory = defaultArchetype.startingEquipment
+        .map(id => ITEMS[id] ? ({ ...ITEMS[id] }) : null) // Retorna null se o item não for encontrado
+        .filter((item): item is EquipmentItem => item !== null); // Filtra os nulos de forma segura para o TypeScript
+
     if (defaultOrigin.id === 'artesao') {
         startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
     }
-    return { name: '', player, archetypeId: defaultArchetype.id, originId: defaultOrigin.id, flames, penumbra, hp: BASE_HP + flames[Flame.Ferro] * 3, darkSecret: '', history: '', personality: '', objectives: '', fears: '', notes: '', influence, inventory: startingInventory, equipped: { weapon: null, armor: null }, ecos: [], specialBonuses, imageUrl: '' };
+
+    return {
+        name: '',
+        player,
+        archetypeId: defaultArchetype.id,
+        originId: defaultOrigin.id,
+        flames,
+        penumbra,
+        hp: BASE_HP + flames[Flame.Ferro] * 3,
+        darkSecret: '',
+        history: '',
+        personality: '',
+        objectives: '',
+        fears: '',
+        notes: '',
+        influence,
+        inventory: startingInventory, // Agora é garantido que seja um array
+        equipped: { weapon: null, armor: null },
+        ecos: [], // Agora é garantido que seja um array
+        specialBonuses, // Agora é garantido que seja um array
+        imageUrl: '',
+    };
 };
 
 const Section: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
