@@ -51,6 +51,14 @@ export interface Origin {
   benefit: string;
 }
 
+export interface Eco {
+  id: string;
+  name: string;
+  description: string;
+  cost?: string;
+  isCustom?: boolean;
+}
+
 export interface Character {
   name: string;
   player: string;
@@ -76,6 +84,7 @@ export interface Character {
       weapon: Weapon | null;
       armor: Armor | null;
   };
+  ecos: Eco[];
   specialBonuses?: string[];
   imageUrl?: string;
 }

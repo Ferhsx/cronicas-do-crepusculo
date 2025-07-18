@@ -7,8 +7,11 @@ import CharacterSheet, { getInitialCharacter } from './pages/CharacterSheet';
 import Lore from './pages/Lore';
 import Rules from './pages/Rules';
 import Archetypes from './pages/Archetypes';
-import type { Character } from './types';
 import { getSharedCharacter } from './service/characterService';
+import OriginsPage from './pages/OriginsPage';
+import ItemsPage from './pages/ItemsPage';
+import EcosPage from './pages/EcosPage';
+import type { Character } from './types';
 import type { Page } from './components/Navigation'; // Importa o tipo 'Page' do Navigation
 
 export default function App() {
@@ -94,8 +97,9 @@ export default function App() {
             case 'lore': return <Lore />;
             case 'rules': return <Rules />;
             case 'archetypes': return <Archetypes />;
-            // Agora, quando renderizamos a ficha, 'character' tem o tipo correto
-            // E 'setActiveCharacter' é do tipo compatível
+            case 'origins': return <OriginsPage />;
+            case 'items': return <ItemsPage />;
+            case 'ecos': return <EcosPage />;
             case 'sheet': return <CharacterSheet character={character} setCharacter={handleSetCharacter} />;
             default: return <Lore />;
         }

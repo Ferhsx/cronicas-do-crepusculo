@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Character, Flame, Archetype, Origin, Difficulty, FLAME_KEYS, EquipmentItem, isWeapon, isArmor, Weapon, Armor, RollResult } from '../types';
-import { ARCHETYPES, ORIGINS, INITIAL_POINTS_TO_DISTRIBUTE, MIN_FLAME_START, MAX_FLAME_START, MAX_PENUMBRA, BASE_HP, DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS, ITEMS } from '../constants';
+import { Character, Flame, Archetype, Origin, Difficulty, FLAME_KEYS, EquipmentItem, isWeapon, isArmor, Weapon, Armor, RollResult, Eco } from '../types';
+import { ARCHETYPES, ORIGINS, INITIAL_POINTS_TO_DISTRIBUTE, MIN_FLAME_START, MAX_FLAME_START, MAX_PENUMBRA, BASE_HP, DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS, ITEMS, ECOS} from '../constants';
 import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from '../icons';
 import { saveCharacterForSharing } from '../service/characterService';
 
@@ -41,7 +41,7 @@ export const getInitialCharacter = (player: string): Character => {
     if (defaultOrigin.id === 'artesao') {
         startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
     }
-    return { name: '', player, archetypeId: defaultArchetype.id, originId: defaultOrigin.id, flames, penumbra, hp: BASE_HP + flames[Flame.Ferro] * 3, darkSecret: '', history: '', personality: '', objectives: '', fears: '', notes: '', influence, inventory: startingInventory, equipped: { weapon: null, armor: null }, specialBonuses, imageUrl: '' };
+    return { name: '', player, archetypeId: defaultArchetype.id, originId: defaultOrigin.id, flames, penumbra, hp: BASE_HP + flames[Flame.Ferro] * 3, darkSecret: '', history: '', personality: '', objectives: '', fears: '', notes: '', influence, inventory: startingInventory, equipped: { weapon: null, armor: null }, ecos: [], specialBonuses, imageUrl: '' };
 };
 
 const Section: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
@@ -90,28 +90,55 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
     const [selectedFlame, setSelectedFlame] = useState<Flame>(Flame.Ferro);
     const [selectedDifficulty, setSelectedDifficulty] = useState<number>(DIFFICULTIES[1].value);
     const [activeTab, setActiveTab] = useState<'test' | 'combat'>('test');
+
     const getPenumbraEffects = useCallback(() => {
         const p = character.penumbra;
         if (p >= 7) return { test: -2, ruby: 2 };
         if (p >= 4) return { test: -1, ruby: 1 };
         return { test: 0, ruby: 0 };
     }, [character.penumbra]);
+
     const rollDice = (diceCount: number) => {
         let total = 0, rolls = [];
         for (let i = 0; i < diceCount; i++) { const roll = Math.floor(Math.random() * 6) + 1; rolls.push(roll); total += roll; }
         return { total, rolls };
     };
+
     const handleRoll = (type: RollResult['type']) => {
         const penumbra = getPenumbraEffects();
         let result: RollResult;
         switch (type) {
             case 'Iniciativa': { const { total, rolls } = rollDice(1); const finalResult = total + character.flames[Flame.Prata]; result = { type, diceCount: 1, rolls, flameType: Flame.Prata, flameValue: character.flames[Flame.Prata], total: finalResult }; break; }
             case 'Teste': { const { total, rolls } = rollDice(2); const flameValue = character.flames[selectedFlame]; const modifier = selectedFlame === Flame.Rubi ? penumbra.ruby : penumbra.test; const finalResult = total + flameValue + modifier; result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, penumbraModifier: modifier, difficulty: selectedDifficulty, total: finalResult, success: finalResult >= selectedDifficulty }; break; }
-            case 'Ataque': { const { total: diceTotal, rolls } = rollDice(2); const flameValue = character.flames[selectedFlame]; const weaponBonus = character.equipped.weapon?.damageBonus ?? 0; const crepuscularRoll = Math.floor(Math.random() * 6) + 1; let crepuscularEffect = "Golpe Normal."; let crepuscularDamageRoll: number | undefined; if (crepuscularRoll >= 3 && crepuscularRoll <= 4) { const { total } = rollDice(1); crepuscularDamageRoll = total; crepuscularEffect = `+${crepuscularDamageRoll} Dano, +1 Penumbra.`; setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) })); } else if (crepuscularRoll >= 5) { crepuscularEffect = `Dano Crítico (dobrado), +2 Penumbra.`; setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2) })); } const finalResult = diceTotal + flameValue + weaponBonus; result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, bonus: weaponBonus, bonusSource: character.equipped.weapon?.name, total: finalResult, crepuscularRoll, crepuscularEffect, crepuscularDamageRoll }; break; }
+            case 'Ataque': { 
+                const { total: diceTotal, rolls } = rollDice(2); 
+                const flameValue = character.flames[selectedFlame]; 
+                const weaponBonus = character.equipped.weapon?.damageBonus ?? 0; 
+                const crepuscularRoll = Math.floor(Math.random() * 6) + 1; 
+                let crepuscularEffect = "Golpe Normal."; 
+                let crepuscularDamageRoll: number | undefined; 
+
+                if (crepuscularRoll >= 3 && crepuscularRoll <= 4) { 
+                    const { total } = rollDice(1); 
+                    crepuscularDamageRoll = total; 
+                    crepuscularEffect = `+${crepuscularDamageRoll} Dano, +1 Penumbra.`; 
+                    // Simplificado:
+                    setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) })); 
+                } else if (crepuscularRoll >= 5) { 
+                    crepuscularEffect = `Dano Crítico (dobrado), +2 Penumbra.`; 
+                    // Simplificado:
+                    setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2) })); 
+                } 
+                
+                const finalResult = diceTotal + flameValue + weaponBonus; 
+                result = { type, diceCount: 2, rolls, flameType: selectedFlame, flameValue, bonus: weaponBonus, bonusSource: character.equipped.weapon?.name, total: finalResult, crepuscularRoll, crepuscularEffect, crepuscularDamageRoll }; 
+                break; 
+            }
             case 'Defesa': { const { total, rolls } = rollDice(2); const flameValue = character.flames[Flame.Prata]; const armorBonus = character.equipped.armor?.defenseBonus ?? 0; const finalResult = total + flameValue + armorBonus; result = { type, diceCount: 2, rolls, flameType: Flame.Prata, flameValue, bonus: armorBonus, bonusSource: character.equipped.armor?.name, total: finalResult }; break; }
         }
         setRollResult(result);
     };
+
     const renderResult = () => {
         if (!rollResult) return null;
         const { type, total, success, rolls, flameType, flameValue, penumbraModifier, bonus, bonusSource, difficulty, crepuscularRoll, crepuscularEffect } = rollResult;
@@ -119,22 +146,264 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
         const isSuccess = success === true ? 'bg-green-500/20 text-green-300 border-green-500' : success === false ? 'bg-red-500/20 text-red-300 border-red-500' : 'bg-slate-900/50 text-amber-200 border-slate-700';
         return (<div className={`p-3 rounded-md border text-center animate-fade-in ${isSuccess}`}><h4 className="font-bold text-lg">{type}: {total}</h4><p className="font-mono text-sm">{calculation}</p>{difficulty && <p className="text-xs">Dificuldade: {difficulty} - {success ? 'Sucesso!' : 'Falha'}</p>}{crepuscularRoll && <p className="text-xs mt-1 pt-1 border-t border-slate-600">Golpe Crepuscular (d6: {crepuscularRoll}): {crepuscularEffect}</p>}</div>)
     }
+
     const TabButton: React.FC<{ tabId: 'test' | 'combat', children: React.ReactNode }> = ({ tabId, children }) => (<button onClick={() => setActiveTab(tabId)} className={`flex-1 pb-2 font-cinzel text-lg border-b-2 ${activeTab === tabId ? 'border-amber-400 text-amber-300' : 'border-slate-700 text-slate-400'}`}>{children}</button>);
-    return (<Section title="Dados de Crepúsculo"><div className="flex mb-4"><TabButton tabId='test'>Teste</TabButton><TabButton tabId='combat'>Combate</TabButton></div>{activeTab === 'test' && (<div className="space-y-4 animate-fade-in"><div className="grid grid-cols-2 gap-4"><div><label htmlFor="flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama Relevante</label><select id="flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{FLAME_KEYS.map(f => <option key={f} value={f}>{f}</option>)}</select></div><div><label htmlFor="difficulty-select" className="block text-sm font-medium text-slate-400 mb-1">Dificuldade</label><select id="difficulty-select" value={selectedDifficulty} onChange={e => setSelectedDifficulty(Number(e.target.value))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{DIFFICULTIES.map(d => <option key={d.name} value={d.value}>{d.name} ({d.value})</option>)}</select></div></div><button onClick={() => handleRoll('Teste')} className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors">Rolar Teste (2d6)</button></div>)}{activeTab === 'combat' && (<div className="space-y-4 animate-fade-in"><div className="text-center"><label htmlFor="combat-flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama de Ataque</label><select id="combat-flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{[Flame.Ferro, Flame.Prata].map(f => <option key={f} value={f}>{f}</option>)}</select></div><div className="grid grid-cols-3 gap-2"><button onClick={() => handleRoll('Iniciativa')} className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Iniciativa (1d6)</button><button onClick={() => handleRoll('Ataque')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Ataque (2d6)</button><button onClick={() => handleRoll('Defesa')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Defesa (2d6)</button></div></div>)}{rollResult && <div className="mt-4">{renderResult()}</div>}</Section>);
+    
+    return (
+        <Section title="Dados de Crepúsculo">
+            <div className="flex mb-4">
+                <TabButton tabId='test'>Teste</TabButton>
+                <TabButton tabId='combat'>Combate</TabButton>
+            </div>
+            {activeTab === 'test' && (<div className="space-y-4 animate-fade-in"><div className="grid grid-cols-2 gap-4"><div><label htmlFor="flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama Relevante</label><select id="flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{FLAME_KEYS.map(f => <option key={f} value={f}>{f}</option>)}</select></div><div><label htmlFor="difficulty-select" className="block text-sm font-medium text-slate-400 mb-1">Dificuldade</label><select id="difficulty-select" value={selectedDifficulty} onChange={e => setSelectedDifficulty(Number(e.target.value))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{DIFFICULTIES.map(d => <option key={d.name} value={d.value}>{d.name} ({d.value})</option>)}</select></div></div><button onClick={() => handleRoll('Teste')} className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded transition-colors">Rolar Teste (2d6)</button></div>)}
+            {activeTab === 'combat' && (<div className="space-y-4 animate-fade-in"><div className="text-center"><label htmlFor="combat-flame-select" className="block text-sm font-medium text-slate-400 mb-1">Chama de Ataque</label><select id="combat-flame-select" value={selectedFlame} onChange={e => setSelectedFlame(e.target.value as Flame)} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400">{[Flame.Ferro, Flame.Prata].map(f => <option key={f} value={f}>{f}</option>)}</select></div><div className="grid grid-cols-3 gap-2"><button onClick={() => handleRoll('Iniciativa')} className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Iniciativa (1d6)</button><button onClick={() => handleRoll('Ataque')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Ataque (2d6)</button><button onClick={() => handleRoll('Defesa')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded transition-colors text-sm">Defesa (2d6)</button></div></div>)}
+            {rollResult && <div className="mt-4">{renderResult()}</div>}
+        </Section>
+    );
 };
 
 const EquipmentAndInventory: React.FC<{ character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ character, setCharacter }) => {
-    const handleEquip = (itemToEquip: EquipmentItem) => { setCharacter(prev => { const newInventory = prev.inventory.filter(i => i.id !== itemToEquip.id); const newEquipped = { ...prev.equipped }; if (isWeapon(itemToEquip)) { if (prev.equipped.weapon) newInventory.push(prev.equipped.weapon); newEquipped.weapon = itemToEquip; } else if (isArmor(itemToEquip)) { if (prev.equipped.armor) newInventory.push(prev.equipped.armor); newEquipped.armor = itemToEquip; } else { newInventory.push(itemToEquip); } return { ...prev, inventory: newInventory, equipped: newEquipped }; }); };
-    const handleUnequip = (type: 'weapon' | 'armor') => { setCharacter(prev => { const itemToUnequip = prev.equipped[type]; if (!itemToUnequip) return prev; const newInventory = [...prev.inventory, itemToUnequip]; const newEquipped = { ...prev.equipped, [type]: null }; return { ...prev, inventory: newInventory, equipped: newEquipped }; }); };
-    const handleDelete = (itemId: string) => { setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== itemId) })); }
-    const EquippedItem: React.FC<{ label: string, item: Weapon | Armor | null, onUnequip: () => void }> = ({ label, item, onUnequip }) => (<div><h4 className="font-bold text-slate-300">{label}</h4>{item ? (<div className="flex items-center justify-between bg-slate-700/50 p-2 rounded-md"><div><p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p><p className="text-xs text-amber-300">{isWeapon(item) && `+${item.damageBonus} Dano`}{isArmor(item) && `+${item.defenseBonus} Defesa`}</p></div><button onClick={onUnequip} className="text-xs bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded">Desequipar</button></div>) : <p className="text-slate-400 text-sm p-2">Nenhum</p>}</div>);
-    return (<Section title="Equipamento e Inventário"><div className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><EquippedItem label="Arma Equipada" item={character.equipped.weapon} onUnequip={() => handleUnequip('weapon')} /><EquippedItem label="Armadura Equipada" item={character.equipped.armor} onUnequip={() => handleUnequip('armor')} /></div><div><h4 className="font-bold text-slate-300 mb-2">Inventário</h4><div className="space-y-2 max-h-48 overflow-y-auto pr-2">{character.inventory.length > 0 ? character.inventory.map(item => (<div key={item.id} className="flex items-center justify-between bg-slate-900/60 p-2 rounded-md"><div><p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p><p className="text-xs text-slate-400">{item.description}</p></div><div className="flex items-center space-x-1">{(isWeapon(item) || isArmor(item)) && <button onClick={() => handleEquip(item)} className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Equipar</button>}<button onClick={() => handleDelete(item.id)} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">X</button></div></div>)) : <p className="text-slate-400 text-sm">Inventário vazio.</p>}</div></div></div></Section>);
+    
+    const handleEquip = (itemToEquip: EquipmentItem) => { 
+        setCharacter(prev => { 
+            const newInventory = prev.inventory.filter(i => i.id !== itemToEquip.id); 
+            const newEquipped = { ...prev.equipped }; 
+            if (isWeapon(itemToEquip)) { 
+                if (prev.equipped.weapon) newInventory.push(prev.equipped.weapon); 
+                newEquipped.weapon = itemToEquip; 
+            } else if (isArmor(itemToEquip)) { 
+                if (prev.equipped.armor) newInventory.push(prev.equipped.armor); 
+                newEquipped.armor = itemToEquip; 
+            } else { 
+                newInventory.push(itemToEquip); 
+            } 
+            return { ...prev, inventory: newInventory, equipped: newEquipped }; 
+        }); 
+    };
+    
+    const handleUnequip = (type: 'weapon' | 'armor') => { 
+        setCharacter(prev => { 
+            const itemToUnequip = prev.equipped[type]; 
+            if (!itemToUnequip) return prev; 
+            const newInventory = [...prev.inventory, itemToUnequip]; 
+            const newEquipped = { ...prev.equipped, [type]: null }; 
+            return { ...prev, inventory: newInventory, equipped: newEquipped }; 
+        }); 
+    };
+    
+    const handleDelete = (itemId: string) => { 
+        setCharacter(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== itemId) })); 
+    }
+    
+    const EquippedItem: React.FC<{ label: string, item: Weapon | Armor | null, onUnequip: () => void }> = ({ label, item, onUnequip }) => (
+        <div>
+            <h4 className="font-bold text-slate-300">{label}</h4>
+            {item ? (
+                <div className="flex items-center justify-between bg-slate-700/50 p-2 rounded-md">
+                    <div>
+                        <p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p>
+                        <p className="text-xs text-amber-300">{isWeapon(item) && `+${item.damageBonus} Dano`}{isArmor(item) && `+${item.defenseBonus} Defesa`}</p>
+                    </div>
+                    <button onClick={onUnequip} className="text-xs bg-slate-600 hover:bg-slate-500 px-2 py-1 rounded">Desequipar</button>
+                </div>
+            ) : <p className="text-slate-400 text-sm p-2">Nenhum</p>}
+        </div>
+    );
+    
+    return (
+        <Section title="Equipamento e Inventário">
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <EquippedItem label="Arma Equipada" item={character.equipped.weapon} onUnequip={() => handleUnequip('weapon')} />
+                    <EquippedItem label="Armadura Equipada" item={character.equipped.armor} onUnequip={() => handleUnequip('armor')} />
+                </div>
+                <div>
+                    <h4 className="font-bold text-slate-300 mb-2">Inventário</h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                        {character.inventory.length > 0 ? character.inventory.map(item => (
+                            <div key={item.id} className="flex items-center justify-between bg-slate-900/60 p-2 rounded-md">
+                                <div>
+                                    <p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p>
+                                    <p className="text-xs text-slate-400">{item.description}</p>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    {(isWeapon(item) || isArmor(item)) && <button onClick={() => handleEquip(item)} className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Equipar</button>}
+                                    <button onClick={() => handleDelete(item.id)} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">X</button>
+                                </div>
+                            </div>
+                        )) : <p className="text-slate-400 text-sm">Inventário vazio.</p>}
+                    </div>
+                </div>
+            </div>
+        </Section>
+    );
 }
+
+// NOVO SUB-COMPONENTE PARA GERENCIAR ECOS
+const EcosSection: React.FC<{ character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ character, setCharacter }) => {
+    const [selectedEcoId, setSelectedEcoId] = useState<string>(ECOS[0]?.id || '');
+    const [customEco, setCustomEco] = useState({ name: '', description: '', cost: '' });
+
+    const handleRemoveEco = (ecoIdToRemove: string) => {
+        setCharacter(prev => ({ ...prev, ecos: prev.ecos.filter(eco => eco.id !== ecoIdToRemove) }));
+    };
+
+    const handleAddEcoFromList = () => {
+        if (!selectedEcoId) return;
+        const ecoToAdd = ECOS.find(e => e.id === selectedEcoId);
+        if (ecoToAdd && !character.ecos.some(e => e.id === ecoToAdd.id)) {
+            setCharacter(prev => ({ ...prev, ecos: [...prev.ecos, ecoToAdd] }));
+        }
+    };
+
+    const handleAddCustomEco = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!customEco.name.trim() || !customEco.description.trim()) {
+            alert("Nome e Descrição são obrigatórios para um eco personalizado.");
+            return;
+        }
+        const newCustomEco: Eco = {
+            ...customEco,
+            id: `custom_${Date.now()}`,
+            isCustom: true,
+        };
+        setCharacter(prev => ({ ...prev, ecos: [...prev.ecos, newCustomEco] }));
+        setCustomEco({ name: '', description: '', cost: '' });
+    };
+
+    return (
+        <Section title="Ecos & Poderes">
+            <div className="space-y-3">
+                {character.ecos.length > 0 ? character.ecos.map(eco => (
+                    <div key={eco.id} className="bg-slate-900/60 p-3 rounded-md border border-slate-700 relative group">
+                        <div className="flex justify-between items-start">
+                            <h4 className="font-bold text-amber-200">{eco.name}</h4>
+                            {eco.cost && <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-full flex-shrink-0 ml-2">{eco.cost}</span>}
+                        </div>
+                        <p className="text-slate-400 text-sm mt-1">{eco.description}</p>
+                        <button 
+                            onClick={() => handleRemoveEco(eco.id)} 
+                            className="absolute top-1 right-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-red-900/50 rounded-full w-5 h-5 flex items-center justify-center"
+                            aria-label="Remover Eco"
+                        >
+                            X
+                        </button>
+                    </div>
+                )) : <p className="text-slate-500 text-sm italic">Nenhum eco conhecido.</p>}
+            </div>
+
+            <div className="border-t border-slate-700 my-4"></div>
+
+            <div className="space-y-2">
+                <h4 className="font-bold text-slate-300">Adicionar Eco Conhecido</h4>
+                <div className="flex space-x-2">
+                    <select
+                        value={selectedEcoId}
+                        onChange={e => setSelectedEcoId(e.target.value)}
+                        className="flex-grow bg-slate-900/80 border border-slate-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                        {ECOS.map(eco => <option key={eco.id} value={eco.id}>{eco.name}</option>)}
+                    </select>
+                    <button onClick={handleAddEcoFromList} className="bg-sky-700 hover:bg-sky-600 text-white font-bold px-4 rounded transition-colors">+</button>
+                </div>
+            </div>
+
+            <form onSubmit={handleAddCustomEco} className="space-y-2 mt-4">
+                <h4 className="font-bold text-slate-300">Adicionar Eco Personalizado</h4>
+                <input type="text" placeholder="Nome do Eco" value={customEco.name} onChange={e => setCustomEco(c => ({ ...c, name: e.target.value }))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2" />
+                <input type="text" placeholder="Custo (ex: 1 Penumbra)" value={customEco.cost} onChange={e => setCustomEco(c => ({ ...c, cost: e.target.value }))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2" />
+                <textarea placeholder="Descrição do Eco" value={customEco.description} onChange={e => setCustomEco(c => ({ ...c, description: e.target.value }))} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 resize-y" rows={2}></textarea>
+                <button type="submit" className="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors">Salvar Eco Personalizado</button>
+            </form>
+        </Section>
+    );
+};
+
+// NOVO SUB-COMPONENTE PARA CONSULTA DE ITENS
+const ItemDatabaseSection: React.FC<{ setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ setCharacter }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filter, setFilter] = useState<'all' | 'weapon' | 'armor' | 'item'>('all');
+
+    const allItems = useMemo(() => Object.values(ITEMS), []);
+
+    const filteredItems = useMemo(() => {
+        return allItems.filter(item => {
+            const matchesFilter = 
+                (filter === 'all') ||
+                (filter === 'weapon' && isWeapon(item)) ||
+                (filter === 'armor' && isArmor(item)) ||
+                (filter === 'item' && !isWeapon(item) && !isArmor(item));
+
+            const matchesSearch = 
+                item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            return matchesFilter && matchesSearch;
+        });
+    }, [searchTerm, filter, allItems]);
+
+    const handleAddItemToInventory = (itemToAdd: EquipmentItem) => {
+        // Criamos uma nova instância do item para evitar problemas de referência
+        const newItemInstance = { ...itemToAdd, id: `${itemToAdd.id}_${Date.now()}` };
+        
+        setCharacter(prev => ({
+            ...prev,
+            inventory: [...prev.inventory, newItemInstance]
+        }));
+    };
+
+    const FilterButton: React.FC<{ filterType: typeof filter, label: string }> = ({ filterType, label }) => (
+        <button
+            onClick={() => setFilter(filterType)}
+            className={`px-3 py-1 text-sm rounded-full transition-colors ${filter === filterType ? 'bg-amber-600 text-white' : 'bg-slate-700 hover:bg-slate-600'}`}
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <Section title="Arsenal do Crepúsculo">
+            <div className="space-y-4">
+                <input
+                    type="text"
+                    placeholder="Buscar item..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2"
+                />
+                <div className="flex flex-wrap gap-2">
+                    <FilterButton filterType="all" label="Todos" />
+                    <FilterButton filterType="weapon" label="Armas" />
+                    <FilterButton filterType="armor" label="Armaduras" />
+                    <FilterButton filterType="item" label="Itens" />
+                </div>
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2 border-t border-slate-700 pt-4">
+                    {filteredItems.length > 0 ? filteredItems.map(item => (
+                        <div key={item.id} className="bg-slate-900/60 p-3 rounded-md relative group">
+                            <h4 className="font-bold text-amber-200">{item.name}</h4>
+                            <p className="text-slate-400 text-sm italic mb-1">{item.description}</p>
+                            {isWeapon(item) && <p className="text-sky-300 text-xs">Bônus de Dano: +{item.damageBonus}</p>}
+                            {isArmor(item) && <p className="text-emerald-300 text-xs">Bônus de Defesa: +{item.defenseBonus}</p>}
+                             <button
+                                onClick={() => handleAddItemToInventory(item)}
+                                className="absolute top-2 right-2 text-white opacity-0 group-hover:opacity-100 transition-opacity text-xl bg-green-700 hover:bg-green-600 rounded-full w-7 h-7 flex items-center justify-center"
+                                aria-label="Adicionar ao Inventário"
+                                title="Adicionar ao Inventário"
+                            >
+                                +
+                            </button>
+                        </div>
+                    )) : <p className="text-slate-500 text-sm italic text-center">Nenhum item encontrado.</p>}
+                </div>
+            </div>
+        </Section>
+    );
+};
 
 // --- COMPONENTE PRINCIPAL ---
 
 export default function CharacterSheet({ character, setCharacter }: { character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }) {
-    
+
     const [isCreating, setIsCreating] = useState(() => !character.name);
 
     const baseFlames = useMemo(() => {
@@ -215,7 +484,7 @@ export default function CharacterSheet({ character, setCharacter }: { character:
                 case 'nobre': newFlames[Flame.Jade] += 1; Object.keys(newInfluence).forEach(key => newInfluence[key as keyof typeof newInfluence] += 1); break;
                 case 'sobrevivente': newPenumbra += 1; newFlames[Flame.Prata] += 1; break;
                 case 'estudioso': newFlames[Flame.Ouro] += 1; if (!newSpecialBonuses.includes("Conhece 1 Eco extra")) { newSpecialBonuses.push("Conhece 1 Eco extra"); } break;
-                case 'artesao': newFlames[Flame.Ferro] += 1; const archetype = ARCHETYPES.find(a => a.id === prev.archetypeId); if (archetype) { const startingIds = archetype.startingEquipment; newInventory = newInventory.map(item => { if (startingIds.includes(item.id)) { return { ...item, isMagical: true }; } return item; })} break;
+                case 'artesao': newFlames[Flame.Ferro] += 1; const archetype = ARCHETYPES.find(a => a.id === prev.archetypeId); if (archetype) { const startingIds = archetype.startingEquipment; newInventory = newInventory.map(item => { if (startingIds.includes(item.id)) { return { ...item, isMagical: true }; } return item; }) } break;
             }
             const newHp = BASE_HP + newFlames[Flame.Ferro] * 3;
             return { ...prev, originId: newOriginId, flames: newFlames, penumbra: newPenumbra, hp: newHp, influence: newInfluence, specialBonuses: newSpecialBonuses, inventory: newInventory };
@@ -233,7 +502,7 @@ export default function CharacterSheet({ character, setCharacter }: { character:
     const plusButtonClass = "bg-green-800 h-8 w-8 rounded-full disabled:bg-slate-700 disabled:cursor-not-allowed";
     const minusButtonClass = "bg-red-800 h-8 w-8 rounded-full disabled:bg-slate-700 disabled:cursor-not-allowed";
     const penumbraPlusButtonClass = "bg-purple-800 h-8 w-8 rounded-full disabled:bg-slate-700 disabled:cursor-not-allowed";
-    
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
             <div className="lg:col-span-1 space-y-6">
@@ -340,9 +609,11 @@ export default function CharacterSheet({ character, setCharacter }: { character:
                 </Section>
 
                 <EquipmentAndInventory character={character} setCharacter={setCharacter} />
+                <EcosSection character={character} setCharacter={setCharacter} />
             </div>
 
             <div className="lg:col-span-1 space-y-6">
+                <ItemDatabaseSection setCharacter={setCharacter} />
                 <Section title="Regras e Efeitos">
                     <h3 className="font-bold text-amber-200 mb-2">Efeitos da Penumbra</h3>
                     <ul className="list-disc list-inside space-y-1 text-slate-300">

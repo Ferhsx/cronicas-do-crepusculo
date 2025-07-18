@@ -2,7 +2,7 @@
 import React from 'react';
 import  Page from '../App';
 
-export type Page = 'lore' | 'rules' | 'archetypes' | 'sheet';
+export type Page = 'lore' | 'rules' | 'archetypes' | 'sheet' | 'ecos' | 'items' | 'origins';
 
 interface NavButtonProps {
     page: Page;
@@ -35,6 +35,9 @@ const Navigation: React.FC<NavigationProps> = ({ activePage, setActivePage }) =>
                 <NavButton page="lore" label="O Mundo" activePage={activePage} setActivePage={setActivePage} />
                 <NavButton page="rules" label="Regras" activePage={activePage} setActivePage={setActivePage} />
                 <NavButton page="archetypes" label="Arquétipos" activePage={activePage} setActivePage={setActivePage} />
+                <NavButton page="origins" label="Origens" activePage={activePage} setActivePage={setActivePage} />
+                <NavButton page="items" label="Itens" activePage={activePage} setActivePage={setActivePage} />
+                <NavButton page="ecos" label="Ecos" activePage={activePage} setActivePage={setActivePage} />
                 <NavButton page="sheet" label="Ficha Interativa" activePage={activePage} setActivePage={setActivePage} />
             </div>
         </nav>
