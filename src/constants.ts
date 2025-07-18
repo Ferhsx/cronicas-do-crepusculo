@@ -18,6 +18,7 @@ export const ITEMS: Record<string, Weapon | Armor | Item> = {
   'cota_malha_lunar': { id: 'cota_malha_lunar', name: 'Cota de Malha Lunar', description: '+2 defesa, reflete ataques mágicos.', defenseBonus: 2 },
   'armadura_escamas': { id: 'armadura_escamas', name: 'Armadura de Escamas', description: '+3 defesa, -1 Prata, imune a frio.', defenseBonus: 3 },
   'manto_brumas': { id: 'manto_brumas', name: 'Manto de Brumas', description: '+1 defesa, +2 em furtividade.', defenseBonus: 1 },
+  'armadura_couro_leve': { id: 'armadura_couro_leve', name: 'Armadura de Couro Leve', description: 'Proteção mínima, máxima mobilidade.', defenseBonus: 1 },
 
   // Equipamento Inicial de Arquétipos
   'cristal_fragmentado': { id: 'cristal_fragmentado', name: 'Cristal Fragmentado', description: 'Mostra fragmentos do passado.' },
