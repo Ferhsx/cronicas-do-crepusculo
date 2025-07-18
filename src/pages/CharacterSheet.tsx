@@ -251,18 +251,18 @@ const EquipmentAndInventory: React.FC<{ character: Character, setCharacter: Reac
                 <div>
                     <h4 className="font-bold text-slate-300 mb-2">Inventário</h4>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                        {character.inventory.length > 0 ? character.inventory.map(item => (
-                            <div key={item.id} className="flex items-center justify-between bg-slate-900/60 p-2 rounded-md">
-                                <div>
-                                    <p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p>
-                                    <p className="text-xs text-slate-400">{item.description}</p>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                    {(isWeapon(item) || isArmor(item)) && <button onClick={() => handleEquip(item)} className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Equipar</button>}
-                                    <button onClick={() => handleDelete(item.id)} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">X</button>
-                                </div>
-                            </div>
-                        )) : <p className="text-slate-400 text-sm">Inventário vazio.</p>}
+                        {(character.inventory || []).length > 0 ? (character.inventory || []).map(item => (
+    <div key={item.id} className="flex items-center justify-between bg-slate-900/60 p-2 rounded-md">
+        <div>
+            <p>{item.name} {item.isMagical && <span className="text-xs text-amber-300">(Mágico)</span>}</p>
+            <p className="text-xs text-slate-400">{item.description}</p>
+        </div>
+        <div className="flex items-center space-x-1">
+            {(isWeapon(item) || isArmor(item)) && <button onClick={() => handleEquip(item)} className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Equipar</button>}
+            <button onClick={() => handleDelete(item.id)} className="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">X</button>
+        </div>
+    </div>
+)) : <p className="text-slate-400 text-sm">Inventário vazio.</p>}
                     </div>
                 </div>
             </div>
@@ -305,7 +305,7 @@ const EcosSection: React.FC<{ character: Character, setCharacter: React.Dispatch
     return (
         <Section title="Ecos & Poderes">
             <div className="space-y-3">
-                {character.ecos.length > 0 ? character.ecos.map(eco => (
+                {(character.ecos || []).length > 0 ? (character.ecos || []).map(eco => (
                     <div key={eco.id} className="bg-slate-900/60 p-3 rounded-md border border-slate-700 relative group">
                         <div className="flex justify-between items-start">
                             <h4 className="font-bold text-amber-200">{eco.name}</h4>
