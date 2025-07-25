@@ -1,10 +1,12 @@
+// --- START OF FILE CharacterSheet.tsx ---
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { Character, Flame, Archetype, Origin, Difficulty, FLAME_KEYS, EquipmentItem, isWeapon, isArmor, Weapon, Armor, RollResult, Eco } from '../types';
 import { ARCHETYPES, ORIGINS, INITIAL_POINTS_TO_DISTRIBUTE, MIN_FLAME_START, MAX_FLAME_START, MAX_PENUMBRA, BASE_HP, DIFFICULTIES, PENUMBRA_EFFECTS, FACTIONS, ITEMS, ECOS} from '../constants';
 import { IronFlameIcon, SilverFlameIcon, GoldFlameIcon, JadeFlameIcon, RubyFlameIcon } from '../icons';
 import { saveCharacterForSharing } from '../service/characterService';
 
-// --- SUB-COMPONENTES E CONSTANTES ---
+// --- SUB-COMPONENTES E CONSTANTES (Sem alterações aqui) ---
 
 const FLAME_DETAILS: Record<Flame, { icon: React.FC, color: string, description: string }> = {
     [Flame.Ferro]: { icon: IronFlameIcon, color: 'text-red-500', description: 'Força física e resistência' },
@@ -33,7 +35,6 @@ export const getInitialCharacter = (player: string): Character => {
     let penumbra = 0;
     let influence = { crepuscular: 0, eterna: 0, brumas: 0, alvorecer: 0 };
     
-    // GARANTIA: Inicia `specialBonuses` como um array vazio.
     let specialBonuses: string[] = [];
 
     switch (defaultOrigin.id) {
@@ -43,10 +44,9 @@ export const getInitialCharacter = (player: string): Character => {
         case 'artesao': flames[Flame.Ferro] += 1; break;
     }
 
-    // GARANTIA: Filtra quaisquer itens que possam ser undefined se o ID estiver errado em constants.ts.
     let startingInventory = defaultArchetype.startingEquipment
-        .map(id => ITEMS[id] ? ({ ...ITEMS[id] }) : null) // Retorna null se o item não for encontrado
-        .filter((item): item is EquipmentItem => item !== null); // Filtra os nulos de forma segura para o TypeScript
+        .map(id => ITEMS[id] ? ({ ...ITEMS[id] }) : null)
+        .filter((item): item is EquipmentItem => item !== null);
 
     if (defaultOrigin.id === 'artesao') {
         startingInventory = startingInventory.map(item => ({ ...item, isMagical: true }));
@@ -67,14 +67,16 @@ export const getInitialCharacter = (player: string): Character => {
         fears: '',
         notes: '',
         influence,
-        inventory: startingInventory, // Agora é garantido que seja um array
+        inventory: startingInventory,
         equipped: { weapon: null, armor: null },
-        ecos: [], // Agora é garantido que seja um array
-        specialBonuses, // Agora é garantido que seja um array
+        ecos: [],
+        specialBonuses,
         imageUrl: '',
     };
 };
 
+// ... (Todos os outros sub-componentes como Section, ShareCharacter, DiceRoller, etc. permanecem os mesmos)
+// ...
 const Section: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
     <div className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-4 shadow-lg ${className}`}>
         <h2 className="font-cinzel text-xl font-bold text-amber-300/90 border-b border-slate-700 pb-2 mb-4">{title}</h2>
@@ -153,11 +155,9 @@ const DiceRoller: React.FC<{ character: Character, setCharacter: React.Dispatch<
                     const { total } = rollDice(1); 
                     crepuscularDamageRoll = total; 
                     crepuscularEffect = `+${crepuscularDamageRoll} Dano, +1 Penumbra.`; 
-                    // Simplificado:
                     setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) })); 
                 } else if (crepuscularRoll >= 5) { 
                     crepuscularEffect = `Dano Crítico (dobrado), +2 Penumbra.`; 
-                    // Simplificado:
                     setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 2) })); 
                 } 
                 
@@ -270,7 +270,6 @@ const EquipmentAndInventory: React.FC<{ character: Character, setCharacter: Reac
     );
 }
 
-// NOVO SUB-COMPONENTE PARA GERENCIAR ECOS
 const EcosSection: React.FC<{ character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ character, setCharacter }) => {
     const [selectedEcoId, setSelectedEcoId] = useState<string>(ECOS[0]?.id || '');
     const [customEco, setCustomEco] = useState({ name: '', description: '', cost: '' });
@@ -350,7 +349,6 @@ const EcosSection: React.FC<{ character: Character, setCharacter: React.Dispatch
     );
 };
 
-// NOVO SUB-COMPONENTE PARA CONSULTA DE ITENS
 const ItemDatabaseSection: React.FC<{ setCharacter: React.Dispatch<React.SetStateAction<Character>> }> = ({ setCharacter }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState<'all' | 'weapon' | 'armor' | 'item'>('all');
@@ -374,7 +372,6 @@ const ItemDatabaseSection: React.FC<{ setCharacter: React.Dispatch<React.SetStat
     }, [searchTerm, filter, allItems]);
 
     const handleAddItemToInventory = (itemToAdd: EquipmentItem) => {
-        // Criamos uma nova instância do item para evitar problemas de referência
         const newItemInstance = { ...itemToAdd, id: `${itemToAdd.id}_${Date.now()}` };
         
         setCharacter(prev => ({
@@ -436,6 +433,10 @@ const ItemDatabaseSection: React.FC<{ setCharacter: React.Dispatch<React.SetStat
 export default function CharacterSheet({ character, setCharacter }: { character: Character, setCharacter: React.Dispatch<React.SetStateAction<Character>> }) {
 
     const [isCreating, setIsCreating] = useState(() => !character.name);
+    const [isEditing, setIsEditing] = useState(false); // NOVO: Estado para controlar o modo de edição.
+
+    // LÓGICA ALTERADA: O modo de edição ou criação está ativo?
+    const isEditMode = isCreating || isEditing;
 
     const baseFlames = useMemo(() => {
         const flames = { ...character.flames };
@@ -475,7 +476,8 @@ export default function CharacterSheet({ character, setCharacter }: { character:
     };
 
     const handleFlameChange = useCallback((flame: Flame, change: number) => {
-        if (!isCreating) return;
+        // LÓGICA ALTERADA: Permite alteração se estiver criando OU editando.
+        if (!isEditMode) return;
         if (change > 0 && pointsRemaining <= 0) return;
         const currentBaseValue = baseFlames[flame];
         const newBaseValue = currentBaseValue + change;
@@ -485,7 +487,7 @@ export default function CharacterSheet({ character, setCharacter }: { character:
             const newHp = BASE_HP + newFlames[Flame.Ferro] * 3;
             return { ...prev, flames: newFlames, hp: newHp };
         });
-    }, [isCreating, pointsRemaining, baseFlames, setCharacter]);
+    }, [isEditMode, pointsRemaining, baseFlames, setCharacter]);
 
     const handleArchetypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newArchetypeId = e.target.value;
@@ -522,10 +524,13 @@ export default function CharacterSheet({ character, setCharacter }: { character:
         });
     };
 
-    const handleFinalizeCreation = () => {
+    // LÓGICA ALTERADA: Função unificada para finalizar criação ou salvar edições.
+    const handleConfirmChanges = () => {
         if (pointsRemaining !== 0) { alert(`Você precisa usar todos os ${INITIAL_POINTS_TO_DISTRIBUTE} pontos.`); return; }
         if (!character.name.trim()) { alert('Por favor, insira o nome do personagem.'); return; }
-        setIsCreating(false);
+
+        if (isCreating) setIsCreating(false);
+        if (isEditing) setIsEditing(false);
     };
 
     const penumbraPercentage = (character.penumbra / MAX_PENUMBRA) * 100;
@@ -552,14 +557,16 @@ export default function CharacterSheet({ character, setCharacter }: { character:
                 </Section>
 
                 <Section title="Arquétipo">
-                    <select value={character.archetypeId} onChange={handleArchetypeChange} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400" disabled={!isCreating}>
+                    {/* ALTERADO: Desabilitado se não estiver em modo de edição */}
+                    <select value={character.archetypeId} onChange={handleArchetypeChange} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400" disabled={!isEditMode}>
                         {ARCHETYPES.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     <p className="text-slate-400 text-sm">{activeArchetype.concept}</p>
                 </Section>
 
                 <Section title="Origem">
-                    <select value={character.originId} onChange={handleOriginChange} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400" disabled={!isCreating}>
+                    {/* ALTERADO: Desabilitado se não estiver em modo de edição */}
+                    <select value={character.originId} onChange={handleOriginChange} className="w-full bg-slate-900/80 border border-slate-600 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400" disabled={!isEditMode}>
                         {ORIGINS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                     </select>
                     <p className="text-slate-400 text-sm"><strong>Benefício:</strong> {activeOrigin.benefit}</p>
@@ -569,18 +576,20 @@ export default function CharacterSheet({ character, setCharacter }: { character:
                     <div className="flex items-center justify-between mb-4">
                         <span className="font-bold text-lg">Pontos de Vida (HP)</span>
                         <div className="flex items-center space-x-2">
-                            <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp - 1 }))} className={minusButtonClass} disabled={isCreating}>-</button>
+                             {/* ALTERADO: Desabilitado se estiver em modo de edição */}
+                            <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp - 1 }))} className={minusButtonClass} disabled={isEditMode}>-</button>
                             <span className="font-mono text-xl w-24 text-center">{character.hp} / {BASE_HP + character.flames[Flame.Ferro] * 3}</span>
-                            <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp + 1 }))} className={plusButtonClass} disabled={isCreating}>+</button>
+                            <button onClick={() => setCharacter(c => ({ ...c, hp: c.hp + 1 }))} className={plusButtonClass} disabled={isEditMode}>+</button>
                         </div>
                     </div>
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="font-bold text-lg">Penumbra</span>
                             <div className="flex items-center space-x-2">
-                                <button onClick={() => setCharacter(c => ({ ...c, penumbra: Math.max(0, c.penumbra - 1) }))} className={buttonClass} disabled={isCreating}>-</button>
+                                {/* ALTERADO: Desabilitado se estiver em modo de edição */}
+                                <button onClick={() => setCharacter(c => ({ ...c, penumbra: Math.max(0, c.penumbra - 1) }))} className={buttonClass} disabled={isEditMode}>-</button>
                                 <span className="font-mono text-xl w-12 text-center">{character.penumbra} / {MAX_PENUMBRA}</span>
-                                <button onClick={() => setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) }))} className={penumbraPlusButtonClass} disabled={isCreating}>+</button>
+                                <button onClick={() => setCharacter(c => ({ ...c, penumbra: Math.min(MAX_PENUMBRA, c.penumbra + 1) }))} className={penumbraPlusButtonClass} disabled={isEditMode}>+</button>
                             </div>
                         </div>
                         <div className="w-full bg-slate-700 rounded-full h-4">
@@ -595,7 +604,17 @@ export default function CharacterSheet({ character, setCharacter }: { character:
 
             <div className="lg:col-span-1 space-y-6">
                 <Section title="As Cinco Chamas da Alma">
-                    {isCreating && (
+                    {/* NOVO: Botão para entrar no modo de edição */}
+                    {!isEditMode && (
+                        <div className="mb-4">
+                             <button onClick={() => setIsEditing(true)} className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                                Editar Ficha
+                            </button>
+                        </div>
+                    )}
+                    
+                    {/* LÓGICA ALTERADA: Mostrar contador de pontos ao criar OU editar */}
+                    {isEditMode && (
                         <div className={`text-center mb-4 p-2 rounded-md transition-colors ${pointsRemaining === 0 ? 'bg-green-800/50' : 'bg-amber-800/50'}`}>
                             Pontos para distribuir: <span className="font-bold text-lg">{pointsRemaining}</span>
                         </div>
@@ -613,17 +632,20 @@ export default function CharacterSheet({ character, setCharacter }: { character:
                                         <p className="text-sm text-slate-400">{FLAME_DETAILS[key].description}</p>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        {isCreating && <button onClick={() => handleFlameChange(key, -1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">-</button>}
+                                        {/* LÓGICA ALTERADA: Mostrar botões ao criar OU editar */}
+                                        {isEditMode && <button onClick={() => handleFlameChange(key, -1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">-</button>}
                                         <span className="font-mono text-2xl w-8 text-center">{character.flames[key]}</span>
-                                        {isCreating && <button onClick={() => handleFlameChange(key, 1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">+</button>}
+                                        {isEditMode && <button onClick={() => handleFlameChange(key, 1)} className="bg-slate-600 h-7 w-7 rounded-full text-lg">+</button>}
                                     </div>
                                 </div>
                             )
                         })}
                     </div>
-                    {isCreating && <button onClick={handleFinalizeCreation} className="w-full mt-6 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-500" disabled={pointsRemaining !== 0 || !character.name.trim()}>Finalizar Criação</button>}
+                    {/* LÓGICA ALTERADA: Mostrar botão para confirmar criação OU edição */}
+                    {isEditMode && <button onClick={handleConfirmChanges} className="w-full mt-6 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-500" disabled={pointsRemaining !== 0 || !character.name.trim()}>{isCreating ? "Finalizar Criação" : "Salvar Alterações"}</button>}
                 </Section>
 
+                {/* O resto dos componentes não precisa de alterações */}
                 <Section title="Habilidades e Bônus">
                     <h3 className="font-bold text-amber-200">Habilidade Especial de Arquétipo</h3>
                     <p className="mb-3 text-slate-300">{activeArchetype.specialAbility}</p>
